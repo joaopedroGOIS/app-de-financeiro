@@ -1,5 +1,5 @@
 import { Award, CheckCircle2, Coins, Flame, Gem, LockKeyhole, Medal, ShieldCheck, Sparkles, Target, Zap } from 'lucide-react'
-import { Badge, Card, CardHeader, EmptyState, ProgressBar } from '../ui'
+import { Badge, Card, CardHeader, EmptyState, ProgressRing } from '../ui'
 import type { PageProps } from './shared'
 
 /* ==========================================================================
@@ -19,17 +19,23 @@ export function JourneyPage({ state, go }: PageProps) {
           <h2>Nível {state.progress.level}</h2>
           <p>A evolução nasce de hábitos financeiros saudáveis. Sem atalhos e sem apostar sua grana.</p>
         </div>
-        <span className="journey-hero-orb"><Award size={34} /></span>
+        <span className="journey-hero-orb"><Gem size={34} /></span>
       </div>
 
       <div className="journey-grid">
-        <div className="journey-stat">
-          <span className="stat-icon"><Zap size={20} /></span>
-          <strong>{state.progress.xp_total} <span>XP</span></strong>
-          <small>Experiência registrada no servidor</small>
-          <div style={{ marginTop: 10 }}>
-            <ProgressBar value={xpProgress} size="thin" />
+        <div className="journey-stat journey-stat-xp">
+          <div className="journey-xp-overview">
+            <div className="journey-xp-value">
+              <span className="stat-icon"><Zap size={20} /></span>
+              <strong>{state.progress.xp_total} <span>XP</span></strong>
+            </div>
+            {state.progress.nextLevelXp && (
+              <ProgressRing value={xpProgress} label={`Progresso de XP para o nível ${state.progress.level + 1}`} size={64} strokeWidth={6}>
+                <span aria-hidden="true">{Math.round(xpProgress)}%</span>
+              </ProgressRing>
+            )}
           </div>
+          <small>Experiência registrada no servidor</small>
           <small>{state.progress.nextLevelXp ? `Progresso para o nível ${state.progress.level + 1}` : 'Curva oficial de XP ainda não configurada — nada é estimado aqui.'}</small>
         </div>
         <div className="journey-stat">

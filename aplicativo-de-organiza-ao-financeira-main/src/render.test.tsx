@@ -10,7 +10,7 @@ import { AccountsPage } from './pages/Accounts'
 import { WealthPage } from './pages/Wealth'
 import { GoalsPage } from './pages/Goals'
 import { JourneyPage } from './pages/Journey'
-import { ThemeSelector, ThemeMenu, Brand } from './ui'
+import { ThemeSelector, ThemeMenu, Brand, MissionCard, ProgressRing } from './ui'
 
 /* --------------------------------------------------------------------------
    Ambiente mínimo de navegador: storage, matchMedia e DOM suficientes para
@@ -46,7 +46,7 @@ g.localStorage = {
 g.matchMedia = matchMedia
 g.window = { matchMedia }
 const dataset: Record<string, string> = {}
-const metaAttributes: Record<string, string> = { content: '#100D1C' }
+const metaAttributes: Record<string, string> = { content: '#111116' }
 g.document = {
   documentElement: { dataset, style: {} as Record<string, string> },
   querySelector: () => ({ setAttribute: (name: string, value: string) => { metaAttributes[name] = value } }),
@@ -112,7 +112,7 @@ test('preferência é gravada e o tema resolvido é aplicado no documento', () =
   assert.equal(metaAttributes.content, '#F4F7FC')
   applyResolvedTheme('dark')
   assert.equal(dataset.theme, 'dark')
-  assert.equal(metaAttributes.content, '#100D1C')
+  assert.equal(metaAttributes.content, '#111116')
 })
 
 test('dashboard renderiza saldo, nível, Graninha, sequência e os totais do mês', () => {
@@ -147,6 +147,7 @@ test('páginas financeiras renderizam com dados reais', () => {
   const entries = renderToStaticMarkup(<EntriesPage {...pageProps} month={month} query="" entryFilter="all" setQuery={noop} setEntryFilter={noop} monthPicker={<span>outubro</span>} />)
   assert.match(entries, /Mercado/)
   assert.match(entries, /2 movimentações encontradas/)
+  assert.equal(entries.match(/class="entry-day-group"/g)?.length, 2, 'histórico agrupado visualmente por data')
 
   const accounts = renderToStaticMarkup(<AccountsPage {...pageProps} />)
   assert.match(accounts, /Conta dia a dia/)
@@ -178,6 +179,18 @@ test('seletores de tema marcam a opção ativa e listam os três modos', () => {
   const menu = renderToStaticMarkup(<ThemeMenu mode="system" onChange={noop} />)
   assert.doesNotMatch(menu, /aria-checked="true"/, 'menu fechado não expõe opções')
   assert.match(renderToStaticMarkup(<Brand />), /grana/)
+})
+
+test('componentes de progresso e missão são reutilizáveis e acessíveis sem embutir recompensas', () => {
+  const ring = renderToStaticMarkup(<ProgressRing value={140} label="Progresso da meta"><span aria-hidden="true">100%</span></ProgressRing>)
+  assert.match(ring, /role="progressbar"/)
+  assert.match(ring, /aria-valuenow="100"/)
+  assert.match(ring, /aria-label="Progresso da meta"/)
+
+  const mission = renderToStaticMarkup(<MissionCard title="Missão fornecida pelo produto" description="A descrição vem dos dados da aplicação." progress={60} status="Ativa" />)
+  assert.match(mission, /Missão fornecida pelo produto/)
+  assert.match(mission, /aria-label="Progresso da missão: Missão fornecida pelo produto"/)
+  assert.doesNotMatch(mission, /Graninha|XP|R\$/)
 })
 
 test('todas as opções de tema são aceitas pelo tipo compartilhado', () => {

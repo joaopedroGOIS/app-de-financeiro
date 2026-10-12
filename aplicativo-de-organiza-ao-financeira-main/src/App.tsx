@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-import { ArrowDownLeft, ArrowLeft, ArrowRight, Award, BarChart3, Check, ChevronRight, CircleAlert, Download, Gem, LogOut, LockKeyhole, Plus, ShieldCheck, Sparkles, Target, Wallet } from 'lucide-react'
+import type { FormEvent } from 'react'
+import { ArrowDownLeft, ArrowLeft, ArrowRight, Award, BarChart3, Check, ChevronRight, Download, Gem, LogOut, LockKeyhole, Plus, ShieldCheck, Sparkles, Target, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { api, ApiError, dateToday, json, monthName, monthShift, setSessionToken, signed } from './data'
 import type { Account, Analysis, Asset, Entry, Goal, State } from './data'
@@ -15,16 +15,16 @@ import { GoalsPage } from './pages/Goals'
 import { JourneyPage } from './pages/Journey'
 import { WealthPage } from './pages/Wealth'
 import type { ModalKind, PageId } from './pages/shared'
-import { Brand, Button, ConfirmDialog, Modal, MonthPicker, ThemeMenu, ThemeSelector, Toast } from './ui'
+import { Brand, Button, ConfirmDialog, InlineError, LoadingScreen, Modal, MonthPicker, PageHeading, ThemeMenu, ThemeSelector, Toast } from './ui'
 
 const pagePaths: Record<PageId, string> = { dashboard: 'visao-geral', entries: 'movimentacoes', accounts: 'contas', wealth: 'patrimonio', goals: 'objetivos', journey: 'jornada' }
 const nav: { id: PageId; label: string; short: string; icon: LucideIcon }[] = [
   { id: 'dashboard', label: 'Visão geral', short: 'Início', icon: BarChart3 },
-  { id: 'entries', label: 'Movimentações', short: 'Extrato', icon: ArrowDownLeft },
   { id: 'accounts', label: 'Minhas contas', short: 'Contas', icon: Wallet },
-  { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem },
+  { id: 'entries', label: 'Movimentações', short: 'Transações', icon: ArrowDownLeft },
   { id: 'goals', label: 'Metas & Sonhos', short: 'Metas', icon: Target },
-  { id: 'journey', label: 'Minha jornada', short: 'Jornada', icon: Award },
+  { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem },
+  { id: 'journey', label: 'Evolução', short: 'Evolução', icon: Award },
 ]
 
 function pageFromHash(): PageId {
@@ -75,7 +75,20 @@ function Authentication({ onReady, sessionError = '' }: { onReady: () => void; s
       </div>
       <div className="auth-form-side">
         <div className="auth-box">
-          <div className="auth-mobile-brand"><Brand /></div>
+          <div className="auth-mobile-brand">
+            <div className="auth-mobile-brand-head">
+              <Brand />
+              <span className="auth-mobile-secure"><ShieldCheck size={14} />Seu espaço seguro</span>
+            </div>
+            <div className="auth-mobile-intro">
+              <span className="auth-mobile-mark"><Sparkles size={24} /></span>
+              <div>
+                <span className="auth-eyebrow">BEM-VINDO À SUA EVOLUÇÃO</span>
+                <h1>Sua grana.<br /><em>Sua evolução.</em></h1>
+                <p>Organize sua vida financeira com clareza, no seu ritmo.</p>
+              </div>
+            </div>
+          </div>
           <span className="auth-top-icon"><Sparkles size={23} /></span>
           <h2>{mode === 'register' ? 'Comece sua jornada' : 'Que bom ter você de volta!'}</h2>
           <p>{mode === 'register' ? 'Um espaço só seu para cuidar do dinheiro sem planilhas e sem complicação.' : 'Entre para continuar de onde você parou.'}</p>
@@ -95,7 +108,7 @@ function Authentication({ onReady, sessionError = '' }: { onReady: () => void; s
             <label>Senha
               <input required type="password" minLength={mode === 'register' ? 8 : undefined} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} placeholder={mode === 'register' ? 'Pelo menos 8 caracteres' : 'Sua senha'} value={password} onChange={event => setPassword(event.target.value)} />
             </label>
-            {error && <div className="error-message" role="alert"><CircleAlert size={16} />{error}</div>}
+            {error && <InlineError>{error}</InlineError>}
             <Button type="submit" wide disabled={pending}>{pending ? 'Só um instante...' : mode === 'register' ? 'Criar meu espaço' : 'Entrar no Granaê'} <ArrowRight size={18} /></Button>
           </form>
           <div className="auth-privacy"><LockKeyhole size={16} />Seus dados são privados. Nada de cassino, apostas ou recompensas por gastar.</div>
@@ -206,7 +219,8 @@ export default function App() {
       setPage(to)
     }
     setReturnTo(null)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+    window.scrollTo({ top: 0, behavior })
   }
 
   const goHome = () => { const from = page; go('dashboard'); if (from !== 'dashboard') setReturnTo(from) }
@@ -251,20 +265,22 @@ export default function App() {
     }
   }
 
-  if (checking) {
-    return (
-      <div className="loading-screen">
-        <Brand />
-        <div className="loading-pulse">Preparando seu espaço...</div>
-      </div>
-    )
-  }
+  if (checking) return <LoadingScreen />
 
   if (!state) return <Authentication onReady={() => boot(true)} sessionError={sessionError} />
 
   const firstName = state.user.name.split(' ')[0]
   const selected = nav.find(item => item.id === page)
   const monthPicker = <MonthPicker label={monthName(month)} onPrevious={() => chooseMonth(-1)} onNext={() => chooseMonth(1)} />
+  const createDashboardEntry = () => {
+    if (!state.accounts.length) {
+      showToast('Crie uma conta antes de registrar movimentações.')
+      go('accounts')
+      return
+    }
+    setEditEntry(null)
+    open('entry')
+  }
   const pageProps = {
     state, go, open,
     editEntry: (entry: Entry | null) => setEditEntry(entry),
@@ -275,25 +291,15 @@ export default function App() {
     requestRemove: setPendingRemove,
     toast: showToast,
   }
-  const heading = (eyebrow: string, title: string, subtitle: string, action?: ReactNode) => (
-    <div className="page-heading">
-      <div>
-        <div className="eyebrow">{eyebrow}</div>
-        <h1>{title}</h1>
-        <p>{subtitle}</p>
-      </div>
-      {action && <div className="page-heading-actions">{action}</div>}
-    </div>
-  )
-
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <button type="button" className="sidebar-brand-button" onClick={() => go('dashboard')}><Brand /></button>
+        <p className="sidebar-tagline">Sua grana. Seu jogo.<br />Sua evolução.</p>
         <div className="sidebar-label">SEU ESPAÇO</div>
         <nav className="sidebar-nav" aria-label="Navegação principal">
           {nav.map(item => (
-            <button key={item.id} type="button" className={`nav-link ${page === item.id ? 'selected' : ''}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
+            <button key={item.id} type="button" className={`nav-link ${page === item.id ? 'selected' : ''}`} aria-label={item.label} title={item.label} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
               <item.icon size={18} strokeWidth={page === item.id ? 2.3 : 1.9} />
               {item.label}
               {item.id === 'goals' && state.goals.length > 0 && <span className="nav-badge">{state.goals.length}</span>}
@@ -305,7 +311,7 @@ export default function App() {
           <span className="sidebar-card-icon"><Award size={18} /></span>
           <strong>Sua evolução começa aqui.</strong>
           <p>Sem pressa. Sem atalhos. Um passo de cada vez.</p>
-          <button type="button" onClick={() => go('journey')}>Minha jornada <ArrowRight size={14} /></button>
+          <button type="button" onClick={() => go('journey')}>Ver evolução <ArrowRight size={14} /></button>
         </div>
         <button type="button" className="sidebar-profile" onClick={() => { setProfileName(state.user.name); open('profile') }}>
           <span className="avatar">{firstName.slice(0, 1).toUpperCase()}</span>
@@ -315,16 +321,27 @@ export default function App() {
 
       <main className="main">
         <header className="topbar">
-          <nav className="topbar-location" aria-label="Caminho de navegação">
-            {page === 'dashboard' && returnTo && (
-              <button type="button" className="breadcrumb-return" onClick={goBack}>
-                <ArrowLeft size={15} />Voltar para {nav.find(item => item.id === returnTo)?.label}
-              </button>
-            )}
-            <button type="button" className="breadcrumb-home" onClick={goHome}>Meu espaço</button>
-            <ChevronRight className="breadcrumb-sep" size={15} />
-            <strong className="breadcrumb-current" aria-current="page">{selected?.label}</strong>
-          </nav>
+          <button type="button" className="mobile-brand-button" onClick={() => go('dashboard')} aria-label="Ir para o início"><Brand /></button>
+          {page === 'dashboard' ? (
+            <div className="desktop-dashboard-greeting">
+              <span className="desktop-dashboard-avatar" aria-hidden="true">{firstName.slice(0, 1).toUpperCase()}</span>
+              <span className="desktop-dashboard-greeting-copy">
+                <strong>Olá, {firstName}</strong>
+                <small>Sua disciplina de hoje constrói seu futuro.</small>
+              </span>
+              {returnTo && (
+                <button type="button" className="breadcrumb-return" onClick={goBack}>
+                  <ArrowLeft size={15} />Voltar para {nav.find(item => item.id === returnTo)?.label}
+                </button>
+              )}
+            </div>
+          ) : (
+            <nav className="topbar-location" aria-label="Caminho de navegação">
+              <button type="button" className="breadcrumb-home" onClick={goHome}>Meu espaço</button>
+              <ChevronRight className="breadcrumb-sep" size={15} />
+              <strong className="breadcrumb-current" aria-current="page">{selected?.label}</strong>
+            </nav>
+          )}
           <div className="topbar-tools">
             <span className="topbar-date">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
             <ThemeMenu mode={mode} onChange={changeTheme} />
@@ -339,35 +356,43 @@ export default function App() {
 
         <div className="page-content">
           {page === 'dashboard' && <>
-            {heading('SEU PAINEL', `Visão geral de ${monthName(month)}`, 'Sua situação financeira, seus objetivos e sua evolução em uma única tela.', monthPicker)}
+            <PageHeading
+              className="dashboard-page-heading"
+              eyebrow="VISÃO FINANCEIRA"
+              title={`Visão geral de ${monthName(month)}`}
+              description="Sua situação financeira, seus objetivos e sua evolução em uma única tela."
+              action={<div className="dashboard-page-actions">{monthPicker}<Button onClick={createDashboardEntry}><Plus size={17} />Nova movimentação</Button></div>}
+            />
             <DashboardPage {...pageProps} month={month} />
           </>}
 
           {page === 'entries' && <>
-            {heading('CADA PASSO CONTA', 'Movimentações', 'Registre o que entra e sai sem precisar de planilhas.',
-              <Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button>)}
+            <PageHeading
+              eyebrow="SEU HISTÓRICO"
+              title="Movimentações"
+              description="Receitas, despesas e ajustes organizados com clareza."
+              action={<Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button>}
+            />
             <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={monthPicker} />
           </>}
 
           {page === 'accounts' && <>
-            {heading('O PONTO DE PARTIDA', 'Minhas contas', 'Cada conta no seu lugar. Seu saldo sempre claro.',
-              <Button onClick={() => { setEditAccount(null); open('account') }}><Plus size={18} />Adicionar conta</Button>)}
+            <PageHeading eyebrow="CONTAS FINANCEIRAS" title="Minhas contas" description="Cada conta no seu lugar. Seu saldo sempre claro." action={<Button onClick={() => { setEditAccount(null); open('account') }}><Plus size={18} />Adicionar conta</Button>} />
             <AccountsPage {...pageProps} />
           </>}
 
           {page === 'wealth' && <>
-            {heading('OLHE PARA O TODO', 'Reserva & patrimônio', 'Dois indicadores diferentes para decisões mais conscientes.')}
+            <PageHeading eyebrow="VISÃO PATRIMONIAL" title="Reserva & patrimônio" description="Dois indicadores diferentes para decisões mais conscientes." />
             <WealthPage {...pageProps} />
           </>}
 
           {page === 'goals' && <>
-            {heading('SONHOS NÃO PRECISAM FICAR NO PAPEL', 'Metas & Sonhos', 'Seu ritmo, seus objetivos. Sem mexer na reserva para realizá-los.',
-              <Button onClick={() => { setEditGoal(null); open('goal') }}><Plus size={18} />Novo objetivo</Button>)}
+            <PageHeading eyebrow="PLANOS EM ANDAMENTO" title="Metas & Sonhos" description="Seu ritmo, seus objetivos. Sem mexer na reserva para realizá-los." action={<Button onClick={() => { setEditGoal(null); open('goal') }}><Plus size={18} />Novo objetivo</Button>} />
             <GoalsPage {...pageProps} analysis={analysis} analysisLoading={analysisLoading} analyze={analyze} />
           </>}
 
           {page === 'journey' && <>
-            {heading('EVOLUIR É CUIDAR DE VOCÊ', 'Minha jornada', 'O jogo acompanha hábitos reais. Nunca incentiva gastos ou dívidas.')}
+            <PageHeading eyebrow="PROGRESSO REGISTRADO" title="Evolução" description="O jogo acompanha hábitos reais. Nunca incentiva gastos ou dívidas." />
             <JourneyPage {...pageProps} />
           </>}
         </div>
@@ -421,12 +446,12 @@ export default function App() {
         </Modal>
       )}
       {modal === 'profile' && (
-        <Modal title="Meu perfil" subtitle="Cuide do seu espaço, da aparência e dos seus dados." onClose={() => setModal(null)} wide>
+        <Modal title="Meu perfil" subtitle="Cuide do seu espaço, da aparência e dos seus dados." onClose={() => setModal(null)} wide immersiveOnMobile>
           <form className="form" onSubmit={async event => { event.preventDefault(); await execute('/profile', json('PATCH', { name: profileName }), 'Nome atualizado.') }}>
             <label>Como podemos chamar você?
               <input required maxLength={50} value={profileName} onChange={event => setProfileName(event.target.value)} />
             </label>
-            {formError && <div className="error-message" role="alert"><CircleAlert size={16} />{formError}</div>}
+            {formError && <InlineError>{formError}</InlineError>}
             <Button type="submit" wide><Check size={17} />Salvar nome</Button>
           </form>
 

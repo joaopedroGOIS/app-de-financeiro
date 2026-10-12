@@ -2,7 +2,7 @@ import { Activity, ArrowDownLeft, ArrowUpRight, Award, Banknote, BookOpen, Calen
 import type { LucideIcon } from 'lucide-react'
 import { categories, categoryColor, compact, currency, dateToday, displayDate, monthName, monthShift, percent, signed } from '../data'
 import type { Entry, Goal } from '../data'
-import { Badge, Button, Card, CardHeader, DonutChart, EmptyState, EvolutionChart, ProgressBar, StatCard } from '../ui'
+import { Badge, Button, Card, CardHeader, DonutChart, EmptyState, EvolutionChart, GoalCard, ProgressBar } from '../ui'
 import type { EvolutionPoint } from '../ui'
 import type { PageProps } from './shared'
 
@@ -58,9 +58,23 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
     }
   }
 
+  const incomeTrend = compare(income, previousIncome)
+  const expenseTrend = compare(expenses, previousExpenses, true)
+  const monthlyResult = income - expenses
   const xpProgress = state.progress.nextLevelXp ? Math.min(100, (state.progress.xp_total / state.progress.nextLevelXp) * 100) : 0
   const openEntry = () => { if (!state.accounts.length) return go('accounts'); editEntry(null); open('entry') }
   const newEntryButton = <Button onClick={openEntry}><Plus size={18} />Nova movimentação</Button>
+  const monthlySummary = (
+    <MonthlySummary
+      month={month}
+      income={income}
+      expenses={expenses}
+      result={monthlyResult}
+      incomeTrend={incomeTrend}
+      expenseTrend={expenseTrend}
+      hasPreviousEntries={previousEntries.length > 0}
+    />
+  )
 
   return (
     <>
@@ -71,13 +85,43 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
           <p>Sua grana, seus objetivos e sua evolução em um só lugar. Organize o presente e cuide do futuro um passo de cada vez.</p>
           <div className="hero-actions">
             <Button variant="on-hero" onClick={openEntry}><Plus size={18} />Nova movimentação</Button>
-            <Button variant="on-hero" onClick={() => go('journey')}><Award size={18} />Minha jornada</Button>
+            <Button variant="on-hero" onClick={() => go('journey')}><Award size={18} />Ver evolução</Button>
           </div>
         </div>
+      </div>
 
-        <div className="level-panel">
+      <div className="dashboard-overview">
+        <Card className="net-worth-card dashboard-net-worth">
+          <div className="net-worth-heading">
+            <div>
+              <span className="net-worth-label">PATRIMÔNIO LÍQUIDO REGISTRADO</span>
+              <strong className="net-worth-value">{currency(state.stats.netWorthCents)}</strong>
+              <small>Contas + bens − dívidas</small>
+            </div>
+            <span className="net-worth-icon"><Gem size={21} /></span>
+          </div>
+          <div className="net-worth-breakdown">
+            <div>
+              <span><Wallet size={14} />Saldo total das contas</span>
+              <strong>{currency(balance)}</strong>
+            </div>
+            <div>
+              <span><ShieldCheck size={14} />Reserva financeira</span>
+              <strong>{currency(state.stats.reserveCents)}</strong>
+            </div>
+          </div>
+          <div className="financial-class-note">
+            <span className="financial-class-mark"><Sparkles size={14} /></span>
+            <div><small>Classe financeira</small><strong>A definir</strong></div>
+            <Badge tone="warning">Critérios em definição</Badge>
+          </div>
+          <p className="financial-class-hint">Nenhuma classe é atribuída por saldo ou reserva enquanto os critérios oficiais não estiverem definidos.</p>
+          <div className="desktop-monthly-summary">{monthlySummary}</div>
+        </Card>
+
+        <div className="level-panel dashboard-level-panel">
           <div className="level-head">
-            <span className="level-badge">{state.progress.level}</span>
+            <span className="level-badge" aria-label={`Nível ${state.progress.level}`}><Gem size={18} aria-hidden="true" /><strong>{state.progress.level}</strong></span>
             <span className="level-head-text">
               <small>NÍVEL ATUAL</small>
               <strong>{state.progress.xp_total} XP</strong>
@@ -86,9 +130,9 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
           <div>
             <div className="level-xp">
               <span>Progresso para o nível {state.progress.level + 1}</span>
-              <strong>{state.progress.nextLevelXp ? `${state.progress.xp_total}/${state.progress.nextLevelXp}` : 'sem curva'}</strong>
+              <strong>{state.progress.nextLevelXp ? `${state.progress.xp_total}/${state.progress.nextLevelXp} XP` : 'não configurado'}</strong>
             </div>
-            <ProgressBar value={xpProgress} onHero size="thick" />
+            {state.progress.nextLevelXp && <ProgressBar value={xpProgress} onHero size="thick" label="Progresso de XP para o próximo nível" />}
             <p className="level-note">
               {state.progress.nextLevelXp
                 ? 'Progresso calculado pela curva oficial de XP do servidor.'
@@ -106,29 +150,31 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
             </span>
           </div>
         </div>
-      </div>
 
-      <div className="stat-grid">
-        <StatCard icon={Wallet} label="Saldo total das contas" value={currency(balance)} hint={`${state.accounts.length} ${state.accounts.length === 1 ? 'conta cadastrada' : 'contas cadastradas'}`} />
-        <StatCard icon={TrendingUp} tone="success" label={`Receitas em ${monthName(month)}`} value={currency(income)} hint={previousEntries.length ? undefined : 'Sem registros no mês anterior para comparar.'} trend={compare(income, previousIncome)} />
-        <StatCard icon={TrendingDown} tone="danger" label={`Despesas em ${monthName(month)}`} value={currency(expenses)} hint={previousEntries.length ? undefined : 'Sem registros no mês anterior para comparar.'} trend={compare(expenses, previousExpenses, true)} />
-        <StatCard icon={ShieldCheck} tone="info" label="Reserva financeira" value={currency(state.stats.reserveCents)} hint="Somente contas marcadas como reserva" />
-      </div>
-
-      <div className="dashboard-grid">
-        <div className="span-6"><StatCard icon={Gem} label="Patrimônio registrado" value={currency(state.stats.netWorthCents)} hint="Contas + bens − dívidas" /></div>
-        <div className="span-6">
-          <div className="stat-card">
-            <div className="stat-head">
-              <span className="stat-icon warning"><Sparkles size={19} /></span>
-              <Badge tone="warning">Critérios em definição</Badge>
+        <div className="dashboard-side-stats">
+          <Card className="player-summary-card streak-summary-card">
+            <div className="player-summary-heading">
+              <span className="player-summary-icon"><Flame size={18} /></span>
+              <small>SEQUÊNCIA ATUAL</small>
             </div>
-            <span className="stat-label">Classe financeira</span>
-            <strong className="stat-value small">A definir</strong>
-            <small className="stat-hint">Nenhuma classe é atribuída por saldo ou reserva enquanto os critérios oficiais não estiverem definidos.</small>
-          </div>
+            <strong>{state.stats.streak} {state.stats.streak === 1 ? 'dia' : 'dias'}</strong>
+            <p>com ações financeiras registradas</p>
+          </Card>
+          <Card className="player-summary-card graninha-summary-card">
+            <div className="player-summary-heading">
+              <span className="player-summary-icon"><Coins size={18} /></span>
+              <small>GRANINHA</small>
+            </div>
+            <strong>{state.progress.graninha_balance}</strong>
+            <p>Moeda virtual do Granaê</p>
+          </Card>
         </div>
 
+      </div>
+
+      <div className="below-overview-monthly-summary">{monthlySummary}</div>
+
+      <div className="dashboard-grid">
         <Card className="span-8">
           <CardHeader title="Evolução financeira" description="Resultado mensal de receitas menos gastos — sem ajustes, bens ou reserva." icon={Activity} />
           {hasEvolution ? (
@@ -161,7 +207,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
                       <span className="category-glyph" style={{ background: tone.soft, color: tone.color }}><CategoryGlyph name={category.name} /></span>
                       <div className="category-row-body">
                         <div className="category-line"><strong>{category.name}</strong><span>{percent(category.cents, expenses)}%</span></div>
-                        <ProgressBar value={percent(category.cents, expenses)} size="thin" />
+                        <ProgressBar value={percent(category.cents, expenses)} size="thin" label={`Percentual de ${category.name} nos gastos de ${monthName(month)}`} />
                       </div>
                     </div>
                   )
@@ -215,6 +261,38 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
   )
 }
 
+type MonthlyTrend = { direction: 'up' | 'down' | 'flat'; label: string; tone: 'good' | 'bad' | 'neutral' }
+
+function MonthlySummary({ month, income, expenses, result, incomeTrend, expenseTrend, hasPreviousEntries }: {
+  month: string
+  income: number
+  expenses: number
+  result: number
+  incomeTrend?: MonthlyTrend
+  expenseTrend?: MonthlyTrend
+  hasPreviousEntries: boolean
+}) {
+  return (
+    <div className="mini-stats dashboard-month-stats" role="group" aria-label={`Resumo financeiro de ${monthName(month)}`}>
+      <div className="mini-stat">
+        <span className="mini-stat-label"><TrendingUp size={14} />Receitas</span>
+        <strong className="positive">{currency(income)}</strong>
+        {incomeTrend ? <small className={`mini-trend ${incomeTrend.tone}`}>{incomeTrend.direction === 'up' ? <TrendingUp size={12} /> : incomeTrend.direction === 'down' ? <TrendingDown size={12} /> : null}{incomeTrend.label}</small> : !hasPreviousEntries && <small className="mini-stat-note">Sem registros no mês anterior para comparar.</small>}
+      </div>
+      <div className="mini-stat">
+        <span className="mini-stat-label"><TrendingDown size={14} />Despesas</span>
+        <strong className="negative">{currency(expenses)}</strong>
+        {expenseTrend ? <small className={`mini-trend ${expenseTrend.tone}`}>{expenseTrend.direction === 'up' ? <TrendingUp size={12} /> : expenseTrend.direction === 'down' ? <TrendingDown size={12} /> : null}{expenseTrend.label}</small> : !hasPreviousEntries && <small className="mini-stat-note">Sem registros no mês anterior para comparar.</small>}
+      </div>
+      <div className="mini-stat">
+        <span className="mini-stat-label"><Wallet size={14} />Resultado do mês</span>
+        <strong className={result < 0 ? 'negative' : 'positive'}>{currency(result)}</strong>
+        <small className="mini-stat-note">Receitas menos despesas</small>
+      </div>
+    </div>
+  )
+}
+
 const accountOf = (state: PageProps['state'], entry: Entry) => state.accounts.find(account => account.id === entry.accountId)?.name ?? 'Conta'
 const archiveRequest = (entry: Entry) => ({
   path: `/entries/${entry.id}`,
@@ -254,14 +332,17 @@ function GoalPreview({ goal, onOpen }: { goal: Goal; onOpen: () => void }) {
   const progress = percent(goal.savedCents, goal.targetCents)
   const done = goal.savedCents >= goal.targetCents
   return (
-    <div className="preview-goal">
-      <span className="preview-goal-icon">{goal.icon}</span>
-      <div className="preview-goal-body">
-        <strong>{goal.title}</strong>
-        <small>{currency(goal.savedCents)} de {currency(goal.targetCents)}</small>
-        <ProgressBar value={progress} tone={done ? 'success' : ''} size="thin" />
-      </div>
-      <button type="button" className="text-action" onClick={onOpen} disabled={done}>{progress}%</button>
-    </div>
+    <GoalCard
+      compact
+      className="preview-goal"
+      title={goal.title}
+      icon={goal.icon}
+      kind={<Badge tone={goal.kind === 'sonho' ? 'primary' : 'neutral'}>{goal.kind === 'sonho' ? 'Sonho' : 'Meta'}</Badge>}
+      description={`${currency(goal.savedCents)} de ${currency(goal.targetCents)}`}
+      progress={progress}
+      actions={<button type="button" className="text-action" onClick={onOpen} disabled={done} aria-label={`Registrar progresso em ${goal.title}, ${progress}% concluído`}>{progress}%</button>}
+    >
+      <ProgressBar value={progress} tone={done ? 'success' : ''} size="thin" label={`Progresso de ${goal.title}`} />
+    </GoalCard>
   )
 }
