@@ -1,0 +1,249 @@
+/* ==========================================================================
+   Granaê — Design tokens
+   --------------------------------------------------------------------------
+   Todas as cores do produto vivem aqui. Nenhum componente deve usar um valor
+   de cor fixo: sempre `var(--token)`. Isso é o que torna a troca de tema
+   instantânea e mantém os dois temas consistentes.
+
+   - `:root`            → tokens estruturais (independentes de tema)
+   - `[data-theme]`     → tokens de cor por tema (escuro/roxo e claro/azul)
+   ========================================================================== */
+
+:root {
+  /* Tipografia */
+  --font-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Manrope', 'DM Sans', system-ui, sans-serif;
+
+  --text-2xs: 10px;
+  --text-xs: 11px;
+  --text-sm: 12.5px;
+  --text-md: 14px;
+  --text-lg: 17px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 34px;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.55;
+
+  /* Raios */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* Espaçamento */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 44px;
+
+  /* Estrutura */
+  --sidebar-width: 264px;
+  --topbar-height: 72px;
+  --content-max: 1440px;
+  --bottom-nav-height: 66px;
+
+  /* Movimento */
+  --ease: cubic-bezier(.4, 0, .2, 1);
+  --duration: 180ms;
+
+  /* Elevação neutra (usada por ambos os temas) */
+  --elevation-ring: 0 0 0 1px var(--border);
+}
+
+/* --------------------------------------------------------------------------
+   TEMA ESCURO — ROXO
+   -------------------------------------------------------------------------- */
+:root[data-theme='dark'] {
+  --bg: #100d1c;
+  --bg-gradient-a: #16102a;
+  --bg-gradient-b: #100d1c;
+  --surface: #1b1630;
+  --surface-raised: #251d3d;
+  --surface-sunken: #16112a;
+  --surface-hover: #221a3a;
+
+  --border: #352b4d;
+  --border-subtle: #2a2140;
+  --border-strong: #463962;
+  --input-border: #735fb3;
+
+  --text: #f8f7fc;
+  --text-secondary: #b7b0ca;
+  --text-muted: #8c84a6;
+  --text-inverse: #1a1430;
+
+  --primary: #8b5cf6;
+  --primary-strong: #7c3aed;
+  --primary-hover: #a78bfa;
+  /* Roxo claro garantido para texto pequeno (6,4:1 sobre superfície). */
+  --primary-text: #a78bfa;
+  --primary-soft: #2a2145;
+  --primary-soft-strong: #382a5e;
+  --on-primary: #ffffff;
+
+  /* Secundárias: violeta e lavanda */
+  --accent: #a78bfa;
+  --accent-2: #c4b5fd;
+  --accent-soft: #2c2247;
+
+  --success: #34d399;
+  --success-soft: #12332a;
+  --warning: #fbbf24;
+  --warning-soft: #33280f;
+  --danger: #f87171;
+  --danger-soft: #39191f;
+  --info: #60a5fa;
+  --info-soft: #16233d;
+
+  --overlay: rgba(9, 7, 18, .74);
+  --shadow-sm: 0 1px 2px rgba(6, 4, 14, .5);
+  --shadow-md: 0 10px 28px rgba(6, 4, 14, .45);
+  --shadow-lg: 0 28px 70px rgba(6, 4, 14, .6);
+  --focus-ring: #a78bfa;
+
+  /* Superfícies de destaque (hero, gamificação) */
+  --hero-from: #2a1b52;
+  --hero-via: #4c2a8f;
+  --hero-to: #6d28d9;
+  --hero-text: #f6f3ff;
+  --hero-muted: #d9ccff;
+  --hero-border: rgba(196, 181, 253, .22);
+  --hero-fill: rgba(255, 255, 255, .1);
+  --hero-success: #8ff0cd;
+
+  /* Categorias de gasto */
+  --cat-alimentacao: #fb923c;
+  --cat-alimentacao-soft: #3a2515;
+  --cat-moradia: #a78bfa;
+  --cat-moradia-soft: #2b2246;
+  --cat-transporte: #60a5fa;
+  --cat-transporte-soft: #172742;
+  --cat-compras: #f472b6;
+  --cat-compras-soft: #3a1a2c;
+  --cat-saude: #34d399;
+  --cat-saude-soft: #12332a;
+  --cat-lazer: #c084fc;
+  --cat-lazer-soft: #2f1f45;
+  --cat-educacao: #fbbf24;
+  --cat-educacao-soft: #33280f;
+  --cat-outros: #94a3b8;
+  --cat-outros-soft: #242b3a;
+  --cat-default: #a78bfa;
+  --cat-default-soft: #2b2246;
+
+  /* Gráficos */
+  --chart-grid: #2a2140;
+  --chart-axis: #8c84a6;
+  --chart-area-from: rgba(139, 92, 246, .38);
+  --chart-area-to: rgba(139, 92, 246, 0);
+  --chart-negative: #fb923c;
+}
+
+/* --------------------------------------------------------------------------
+   TEMA CLARO — AZUL
+   -------------------------------------------------------------------------- */
+:root[data-theme='light'] {
+  --bg: #f4f7fc;
+  --bg-gradient-a: #eef3fb;
+  --bg-gradient-b: #f4f7fc;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f7f9fd;
+  --surface-hover: #f5f8fd;
+
+  --border: #e2e8f0;
+  --border-subtle: #edf1f7;
+  --border-strong: #cbd5e1;
+  --input-border: #7f8ea6;
+
+  --text: #172033;
+  --text-secondary: #64748b;
+  --text-muted: #5a6980;
+  --text-inverse: #ffffff;
+
+  --primary: #2563eb;
+  --primary-strong: #1d4ed8;
+  --primary-hover: #1e40af;
+  /* Azul profundo garantido para texto pequeno (6,7:1 sobre superfície). */
+  --primary-text: #1d4ed8;
+  --primary-soft: #eaf1fe;
+  --primary-soft-strong: #d8e5fd;
+  --on-primary: #ffffff;
+
+  /* Secundárias: azul claro e azul profundo */
+  --accent: #60a5fa;
+  --accent-2: #1e3a8a;
+  --accent-soft: #e8f1fe;
+
+  --success: #047857;
+  --success-soft: #e2f4ec;
+  --warning: #92400e;
+  --warning-soft: #fdf3e3;
+  --danger: #c02626;
+  --danger-soft: #fdeaea;
+  --info: #1d4ed8;
+  --info-soft: #e8f0fe;
+
+  --overlay: rgba(23, 32, 51, .45);
+  --shadow-sm: 0 1px 2px rgba(23, 32, 51, .06);
+  --shadow-md: 0 10px 30px rgba(23, 32, 51, .08);
+  --shadow-lg: 0 28px 70px rgba(23, 32, 51, .16);
+  --focus-ring: #2563eb;
+
+  --hero-from: #1d4ed8;
+  --hero-via: #1e40af;
+  --hero-to: #1e3a8a;
+  --hero-text: #ffffff;
+  --hero-muted: #dbeafe;
+  --hero-border: rgba(255, 255, 255, .34);
+  --hero-fill: rgba(255, 255, 255, .16);
+  --hero-success: #6ee7b7;
+
+  --cat-alimentacao: #ea580c;
+  --cat-alimentacao-soft: #fdf0e6;
+  --cat-moradia: #7c3aed;
+  --cat-moradia-soft: #f2ecfe;
+  --cat-transporte: #2563eb;
+  --cat-transporte-soft: #eaf1fe;
+  --cat-compras: #db2777;
+  --cat-compras-soft: #fdecf4;
+  --cat-saude: #047857;
+  --cat-saude-soft: #e2f4ec;
+  --cat-lazer: #9333ea;
+  --cat-lazer-soft: #f7edfe;
+  --cat-educacao: #b45309;
+  --cat-educacao-soft: #fdf1de;
+  --cat-outros: #64748b;
+  --cat-outros-soft: #eef2f7;
+  --cat-default: #7c3aed;
+  --cat-default-soft: #f2ecfe;
+
+  --chart-grid: #e7ecf5;
+  --chart-axis: #64748b;
+  --chart-area-from: rgba(37, 99, 235, .26);
+  --chart-area-to: rgba(37, 99, 235, 0);
+  --chart-negative: #ea580c;
+}
+
+/* Movimentos reduzidos respeitados nos dois temas */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 1ms;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

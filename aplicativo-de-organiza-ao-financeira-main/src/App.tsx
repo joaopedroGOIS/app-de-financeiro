@@ -1,0 +1,480 @@
+import { useEffect, useRef, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+import { ArrowDownLeft, ArrowLeft, ArrowRight, Award, BarChart3, Check, ChevronRight, CircleAlert, Download, Gem, LogOut, LockKeyhole, Plus, ShieldCheck, Sparkles, Target, Wallet } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { api, ApiError, dateToday, json, monthName, monthShift, setSessionToken, signed } from './data'
+import type { Account, Analysis, Asset, Entry, Goal, State } from './data'
+import { useTheme } from './theme'
+import type { ThemeMode } from './theme'
+import { AccountForm, AssetForm, ContributionForm, EntryForm, GoalForm } from './forms'
+import { AccountsPage } from './pages/Accounts'
+import { DashboardPage } from './pages/Dashboard'
+import { EntriesPage } from './pages/Entries'
+import type { EntryFilter } from './pages/Entries'
+import { GoalsPage } from './pages/Goals'
+import { JourneyPage } from './pages/Journey'
+import { WealthPage } from './pages/Wealth'
+import type { ModalKind, PageId } from './pages/shared'
+import { Brand, Button, ConfirmDialog, Modal, MonthPicker, ThemeMenu, ThemeSelector, Toast } from './ui'
+
+const pagePaths: Record<PageId, string> = { dashboard: 'visao-geral', entries: 'movimentacoes', accounts: 'contas', wealth: 'patrimonio', goals: 'objetivos', journey: 'jornada' }
+const nav: { id: PageId; label: string; short: string; icon: LucideIcon }[] = [
+  { id: 'dashboard', label: 'Visão geral', short: 'Início', icon: BarChart3 },
+  { id: 'entries', label: 'Movimentações', short: 'Extrato', icon: ArrowDownLeft },
+  { id: 'accounts', label: 'Minhas contas', short: 'Contas', icon: Wallet },
+  { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem },
+  { id: 'goals', label: 'Metas & Sonhos', short: 'Metas', icon: Target },
+  { id: 'journey', label: 'Minha jornada', short: 'Jornada', icon: Award },
+]
+
+function pageFromHash(): PageId {
+  return (Object.keys(pagePaths) as PageId[]).find(page => window.location.hash === `#/${pagePaths[page]}`) ?? 'dashboard'
+}
+
+function Authentication({ onReady, sessionError = '' }: { onReady: () => void; sessionError?: string }) {
+  const [mode, setMode] = useState<'register' | 'login'>(sessionError ? 'login' : 'register')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState(sessionError)
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    setError('')
+    setPending(true)
+    try {
+      const result = await api<{ ok: boolean; sessionToken?: string }>(`/auth/${mode}`, { ...json('POST', mode === 'register' ? { name, email, password } : { email, password }), headers: { 'X-Session-Transport': 'bearer' } })
+      if (!result.sessionToken) {
+        setMode('login')
+        throw new Error('O servidor não retornou uma sessão para esta prévia. Sua conta pode ter sido criada; tente entrar com o mesmo e-mail e senha.')
+      }
+      setSessionToken(result.sessionToken)
+      onReady()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setPending(false)
+    }
+  }
+  return (
+    <div className="auth-layout">
+      <div className="auth-story">
+        <Brand light />
+        <div className="auth-orbit">
+          <div className="auth-orbit-ring"><Sparkles size={54} /></div>
+          <span className="orbit-bubble bubble-one"><ArrowRight size={17} /></span>
+          <span className="orbit-bubble bubble-two"><Award size={17} /></span>
+          <span className="orbit-bubble bubble-three"><Gem size={17} /></span>
+        </div>
+        <div className="auth-story-copy">
+          <span className="auth-eyebrow">BEM-VINDO À SUA EVOLUÇÃO</span>
+          <h1>Sua grana.<br />Seu jogo.<br /><em>Sua evolução.</em></h1>
+          <p>Organize sua vida financeira de um jeito mais leve. Aqui, quem joga é você. Quem ganha é o seu futuro.</p>
+        </div>
+        <div className="auth-story-foot"><Sparkles size={14} />Pequenos passos. Grandes conquistas.</div>
+      </div>
+      <div className="auth-form-side">
+        <div className="auth-box">
+          <div className="auth-mobile-brand"><Brand /></div>
+          <span className="auth-top-icon"><Sparkles size={23} /></span>
+          <h2>{mode === 'register' ? 'Comece sua jornada' : 'Que bom ter você de volta!'}</h2>
+          <p>{mode === 'register' ? 'Um espaço só seu para cuidar do dinheiro sem planilhas e sem complicação.' : 'Entre para continuar de onde você parou.'}</p>
+          <div className="auth-tabs">
+            <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setError('') }}>Criar conta</button>
+            <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setError('') }}>Entrar</button>
+          </div>
+          <form className="form" onSubmit={submit}>
+            {mode === 'register' && (
+              <label>Seu nome
+                <input required maxLength={50} autoComplete="name" placeholder="Como podemos chamar você?" value={name} onChange={event => setName(event.target.value)} />
+              </label>
+            )}
+            <label>E-mail
+              <input required type="email" autoComplete="email" placeholder="voce@exemplo.com" value={email} onChange={event => setEmail(event.target.value)} />
+            </label>
+            <label>Senha
+              <input required type="password" minLength={mode === 'register' ? 8 : undefined} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} placeholder={mode === 'register' ? 'Pelo menos 8 caracteres' : 'Sua senha'} value={password} onChange={event => setPassword(event.target.value)} />
+            </label>
+            {error && <div className="error-message" role="alert"><CircleAlert size={16} />{error}</div>}
+            <Button type="submit" wide disabled={pending}>{pending ? 'Só um instante...' : mode === 'register' ? 'Criar meu espaço' : 'Entrar no Granaê'} <ArrowRight size={18} /></Button>
+          </form>
+          <div className="auth-privacy"><LockKeyhole size={16} />Seus dados são privados. Nada de cassino, apostas ou recompensas por gastar.</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function App() {
+  const [state, setState] = useState<State | null>(null)
+  const [checking, setChecking] = useState(true)
+  const [sessionError, setSessionError] = useState('')
+  const [page, setPage] = useState<PageId>(pageFromHash)
+  const [returnTo, setReturnTo] = useState<PageId | null>(null)
+  const [month, setMonth] = useState(dateToday().slice(0, 7))
+  const [modal, setModal] = useState<ModalKind | null>(null)
+  const [editEntry, setEditEntry] = useState<Entry | null>(null)
+  const [editAccount, setEditAccount] = useState<Account | null>(null)
+  const [editAsset, setEditAsset] = useState<Asset | null>(null)
+  const [editGoal, setEditGoal] = useState<Goal | null>(null)
+  const [contributeGoal, setContributeGoal] = useState<Goal | null>(null)
+  const [analysis, setAnalysis] = useState<Record<string, Analysis>>({})
+  const [analysisLoading, setAnalysisLoading] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null)
+  const [formError, setFormError] = useState('')
+  const [query, setQuery] = useState('')
+  const [entryFilter, setEntryFilter] = useState<EntryFilter>('all')
+  const [profileName, setProfileName] = useState('')
+  const [pendingRemove, setPendingRemove] = useState<{ path: string; title: string; description: string } | null>(null)
+  const { mode, setMode } = useTheme()
+  const modeRef = useRef(mode)
+  modeRef.current = mode
+
+  const showToast = (message: string, tone: 'success' | 'error' = 'success') => setToast({ message, tone })
+  const refresh = async () => { const data = await api<State>('/state'); setState(data); return data }
+
+  const boot = (afterAuth = false) => {
+    setChecking(true)
+    refresh()
+      .then(() => setSessionError(''))
+      .catch(err => {
+        setState(null)
+        if (err instanceof ApiError && err.status === 401 && !afterAuth) { setSessionToken(null); setSessionError('') }
+        else if (err instanceof ApiError && err.status === 401) {
+          setSessionToken(null)
+          setSessionError(err.code === 'SESSION_MISSING'
+            ? 'O login foi aceito, mas a sessão não chegou ao servidor (SESSION_MISSING). Reabra a prévia e tente entrar novamente.'
+            : err.code === 'SESSION_INVALID'
+              ? 'O login foi aceito, mas a sessão recebida era inválida (SESSION_INVALID). Reabra a prévia e tente novamente.'
+              : 'Não foi possível manter a sessão nesta prévia. Tente entrar novamente com seu e-mail e senha.')
+        } else setSessionError((err as Error).message || 'Não foi possível abrir sua sessão. Tente novamente.')
+      })
+      .finally(() => setChecking(false))
+  }
+
+  useEffect(() => { boot() }, [])
+
+  useEffect(() => {
+    const syncPage = () => { setPage(pageFromHash()); setReturnTo(null) }
+    window.addEventListener('popstate', syncPage)
+    window.addEventListener('hashchange', syncPage)
+    return () => { window.removeEventListener('popstate', syncPage); window.removeEventListener('hashchange', syncPage) }
+  }, [])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(null), 4200)
+    return () => clearTimeout(timer)
+  }, [toast])
+
+  // A preferência salva na conta vence a preferência local (vale entre dispositivos).
+  const remoteTheme = state?.preferences?.theme ?? null
+  useEffect(() => {
+    if (remoteTheme && remoteTheme !== modeRef.current) setMode(remoteTheme)
+  }, [remoteTheme, setMode])
+
+  const changeTheme = async (next: ThemeMode) => {
+    setMode(next) // aplicação imediata, sem recarregar
+    if (!state) return
+    try {
+      await api('/preferences', json('PATCH', { theme: next }))
+    } catch (err) {
+      showToast(`Tema aplicado neste dispositivo, mas não foi possível salvá-lo na sua conta: ${(err as Error).message}`, 'error')
+    }
+  }
+
+  const execute = async (path: string, options: RequestInit, success: string) => {
+    setFormError('')
+    try {
+      await api(path, options)
+      await refresh()
+      setAnalysis({})
+      setModal(null)
+      showToast(success)
+      return true
+    } catch (err) {
+      const message = (err as Error).message
+      setFormError(message)
+      showToast(message, 'error')
+      return false
+    }
+  }
+
+  const go = (to: PageId) => {
+    if (to !== page) {
+      window.history.pushState(null, '', `#/${pagePaths[to]}`)
+      setPage(to)
+    }
+    setReturnTo(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const goHome = () => { const from = page; go('dashboard'); if (from !== 'dashboard') setReturnTo(from) }
+  const goBack = () => { if (returnTo) window.history.back() }
+  const open = (kind: ModalKind) => { setFormError(''); setModal(kind) }
+  const chooseMonth = (offset: number) => setMonth(previous => monthShift(previous, offset))
+
+  const downloadCSV = () => {
+    if (!state) return
+    const rows = [['Data', 'Tipo', 'Conta', 'Categoria', 'Descrição', 'Valor (R$)', 'Observação', 'Situação'],
+    ...[...state.entries.map(entry => ({ ...entry, archived: false })), ...state.archivedEntries.map(entry => ({ ...entry, archived: true }))]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map(entry => [
+        entry.date,
+        entry.type === 'income' ? 'Receita' : entry.type === 'expense' ? 'Gasto' : 'Ajuste',
+        state.accounts.find(account => account.id === entry.accountId)?.name ?? '',
+        entry.category,
+        entry.title,
+        (signed(entry) / 100).toFixed(2).replace('.', ','),
+        entry.note,
+        entry.archived ? 'Arquivada' : 'Ativa',
+      ])]
+    const csv = '\uFEFF' + rows.map(row => row.map(cell => `"${String(cell).replaceAll('"', '""')}"`).join(';')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `granae-movimentacoes-${dateToday()}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    showToast('Seu histórico foi exportado!')
+  }
+
+  const analyze = async (goal: Goal) => {
+    setAnalysisLoading(goal.id)
+    try {
+      const result = await api<Analysis>(`/goals/${goal.id}/difficulty`)
+      setAnalysis(previous => ({ ...previous, [goal.id]: result }))
+    } catch (err) {
+      showToast((err as Error).message, 'error')
+    } finally {
+      setAnalysisLoading(null)
+    }
+  }
+
+  if (checking) {
+    return (
+      <div className="loading-screen">
+        <Brand />
+        <div className="loading-pulse">Preparando seu espaço...</div>
+      </div>
+    )
+  }
+
+  if (!state) return <Authentication onReady={() => boot(true)} sessionError={sessionError} />
+
+  const firstName = state.user.name.split(' ')[0]
+  const selected = nav.find(item => item.id === page)
+  const monthPicker = <MonthPicker label={monthName(month)} onPrevious={() => chooseMonth(-1)} onNext={() => chooseMonth(1)} />
+  const pageProps = {
+    state, go, open,
+    editEntry: (entry: Entry | null) => setEditEntry(entry),
+    editAccount: (account: Account | null) => setEditAccount(account),
+    editAsset: (asset: Asset | null) => setEditAsset(asset),
+    editGoal: (goal: Goal | null) => setEditGoal(goal),
+    contributeTo: (goal: Goal | null) => setContributeGoal(goal),
+    requestRemove: setPendingRemove,
+    toast: showToast,
+  }
+  const heading = (eyebrow: string, title: string, subtitle: string, action?: ReactNode) => (
+    <div className="page-heading">
+      <div>
+        <div className="eyebrow">{eyebrow}</div>
+        <h1>{title}</h1>
+        <p>{subtitle}</p>
+      </div>
+      {action && <div className="page-heading-actions">{action}</div>}
+    </div>
+  )
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <button type="button" className="sidebar-brand-button" onClick={() => go('dashboard')}><Brand /></button>
+        <div className="sidebar-label">SEU ESPAÇO</div>
+        <nav className="sidebar-nav" aria-label="Navegação principal">
+          {nav.map(item => (
+            <button key={item.id} type="button" className={`nav-link ${page === item.id ? 'selected' : ''}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
+              <item.icon size={18} strokeWidth={page === item.id ? 2.3 : 1.9} />
+              {item.label}
+              {item.id === 'goals' && state.goals.length > 0 && <span className="nav-badge">{state.goals.length}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-spacer" />
+        <div className="sidebar-card">
+          <span className="sidebar-card-icon"><Award size={18} /></span>
+          <strong>Sua evolução começa aqui.</strong>
+          <p>Sem pressa. Sem atalhos. Um passo de cada vez.</p>
+          <button type="button" onClick={() => go('journey')}>Minha jornada <ArrowRight size={14} /></button>
+        </div>
+        <button type="button" className="sidebar-profile" onClick={() => { setProfileName(state.user.name); open('profile') }}>
+          <span className="avatar">{firstName.slice(0, 1).toUpperCase()}</span>
+          <span className="sidebar-profile-text"><strong>{state.user.name}</strong><small>Meu perfil</small></span>
+        </button>
+      </aside>
+
+      <main className="main">
+        <header className="topbar">
+          <nav className="topbar-location" aria-label="Caminho de navegação">
+            {page === 'dashboard' && returnTo && (
+              <button type="button" className="breadcrumb-return" onClick={goBack}>
+                <ArrowLeft size={15} />Voltar para {nav.find(item => item.id === returnTo)?.label}
+              </button>
+            )}
+            <button type="button" className="breadcrumb-home" onClick={goHome}>Meu espaço</button>
+            <ChevronRight className="breadcrumb-sep" size={15} />
+            <strong className="breadcrumb-current" aria-current="page">{selected?.label}</strong>
+          </nav>
+          <div className="topbar-tools">
+            <span className="topbar-date">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            <ThemeMenu mode={mode} onChange={changeTheme} />
+            <button type="button" className="btn btn-outline btn-sm" onClick={downloadCSV} title="Exportar histórico em CSV">
+              <Download size={15} /><span>Exportar</span>
+            </button>
+            <button type="button" className="avatar avatar-button" onClick={() => { setProfileName(state.user.name); open('profile') }} aria-label="Abrir perfil">
+              {firstName.slice(0, 1).toUpperCase()}
+            </button>
+          </div>
+        </header>
+
+        <div className="page-content">
+          {page === 'dashboard' && <>
+            {heading('SEU PAINEL', `Visão geral de ${monthName(month)}`, 'Sua situação financeira, seus objetivos e sua evolução em uma única tela.', monthPicker)}
+            <DashboardPage {...pageProps} month={month} />
+          </>}
+
+          {page === 'entries' && <>
+            {heading('CADA PASSO CONTA', 'Movimentações', 'Registre o que entra e sai sem precisar de planilhas.',
+              <Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button>)}
+            <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={monthPicker} />
+          </>}
+
+          {page === 'accounts' && <>
+            {heading('O PONTO DE PARTIDA', 'Minhas contas', 'Cada conta no seu lugar. Seu saldo sempre claro.',
+              <Button onClick={() => { setEditAccount(null); open('account') }}><Plus size={18} />Adicionar conta</Button>)}
+            <AccountsPage {...pageProps} />
+          </>}
+
+          {page === 'wealth' && <>
+            {heading('OLHE PARA O TODO', 'Reserva & patrimônio', 'Dois indicadores diferentes para decisões mais conscientes.')}
+            <WealthPage {...pageProps} />
+          </>}
+
+          {page === 'goals' && <>
+            {heading('SONHOS NÃO PRECISAM FICAR NO PAPEL', 'Metas & Sonhos', 'Seu ritmo, seus objetivos. Sem mexer na reserva para realizá-los.',
+              <Button onClick={() => { setEditGoal(null); open('goal') }}><Plus size={18} />Novo objetivo</Button>)}
+            <GoalsPage {...pageProps} analysis={analysis} analysisLoading={analysisLoading} analyze={analyze} />
+          </>}
+
+          {page === 'journey' && <>
+            {heading('EVOLUIR É CUIDAR DE VOCÊ', 'Minha jornada', 'O jogo acompanha hábitos reais. Nunca incentiva gastos ou dívidas.')}
+            <JourneyPage {...pageProps} />
+          </>}
+        </div>
+      </main>
+
+      <nav className="bottom-nav" aria-label="Navegação principal">
+        {nav.map(item => (
+          <button key={item.id} type="button" className={`bottom-nav-item ${page === item.id ? 'selected' : ''}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
+            <item.icon size={20} strokeWidth={page === item.id ? 2.3 : 1.9} />
+            <span>{item.short}</span>
+          </button>
+        ))}
+      </nav>
+
+      {modal === 'entry' && (
+        <Modal title={editEntry ? 'Editar movimentação' : 'Nova movimentação'} subtitle="Registre uma ação real. Seu saldo será atualizado automaticamente." onClose={() => setModal(null)}>
+          <EntryForm
+            initial={editEntry}
+            accounts={state.accounts}
+            error={formError}
+            onSubmit={async body => execute(editEntry ? `/entries/${editEntry.id}` : '/entries', json(editEntry ? 'PATCH' : 'POST', body, !editEntry), editEntry ? 'Movimentação atualizada.' : 'Movimentação registrada.')}
+          />
+        </Modal>
+      )}
+      {modal === 'account' && (
+        <Modal title={editAccount ? 'Editar conta' : 'Adicionar conta'} subtitle="Seus saldos organizados do seu jeito." onClose={() => setModal(null)}>
+          <AccountForm initial={editAccount} error={formError} onSubmit={async body => execute(editAccount ? `/accounts/${editAccount.id}` : '/accounts', json(editAccount ? 'PATCH' : 'POST', body), editAccount ? 'Conta atualizada.' : 'Conta criada.')} />
+        </Modal>
+      )}
+      {modal === 'asset' && (
+        <Modal title={editAsset ? 'Editar item' : 'Adicionar bem ou dívida'} subtitle="Para um retrato mais completo do seu patrimônio." onClose={() => setModal(null)}>
+          <AssetForm initial={editAsset} error={formError} onSubmit={async body => execute(editAsset ? `/assets/${editAsset.id}` : '/assets', json(editAsset ? 'PATCH' : 'POST', body), editAsset ? 'Item atualizado.' : 'Item adicionado.')} />
+        </Modal>
+      )}
+      {modal === 'goal' && (
+        <Modal title={editGoal ? 'Editar objetivo' : 'Novo objetivo'} subtitle="Escolha um sonho ou uma meta para acompanhar." onClose={() => setModal(null)}>
+          <GoalForm initial={editGoal} error={formError} onSubmit={async body => execute(editGoal ? `/goals/${editGoal.id}` : '/goals', json(editGoal ? 'PATCH' : 'POST', body), editGoal ? 'Objetivo atualizado.' : 'Objetivo criado. Criar não gera recompensas.')} />
+        </Modal>
+      )}
+      {modal === 'contribution' && contributeGoal && (
+        <Modal title="Mais perto do seu objetivo" subtitle={`Registre quanto progrediu em “${contributeGoal.title}”.`} onClose={() => setModal(null)}>
+          <ContributionForm
+            goal={contributeGoal}
+            error={formError}
+            onSubmit={async body => {
+              const done = await execute(`/goals/${contributeGoal.id}/contributions`, json('POST', body, true), 'Progresso registrado! Seus marcos foram atualizados.')
+              if (done) setAnalysis(previous => { const next = { ...previous }; delete next[contributeGoal.id]; return next })
+              return done
+            }}
+          />
+        </Modal>
+      )}
+      {modal === 'profile' && (
+        <Modal title="Meu perfil" subtitle="Cuide do seu espaço, da aparência e dos seus dados." onClose={() => setModal(null)} wide>
+          <form className="form" onSubmit={async event => { event.preventDefault(); await execute('/profile', json('PATCH', { name: profileName }), 'Nome atualizado.') }}>
+            <label>Como podemos chamar você?
+              <input required maxLength={50} value={profileName} onChange={event => setProfileName(event.target.value)} />
+            </label>
+            {formError && <div className="error-message" role="alert"><CircleAlert size={16} />{formError}</div>}
+            <Button type="submit" wide><Check size={17} />Salvar nome</Button>
+          </form>
+
+          <div className="divider" />
+
+          <div className="field">
+            <span className="field-label">Aparência do aplicativo</span>
+            <span className="field-hint">A troca é imediata e a preferência fica salva na sua conta.</span>
+            <ThemeSelector mode={mode} onChange={changeTheme} />
+          </div>
+
+          <div className="profile-links">
+            <button type="button" onClick={downloadCSV}><Download size={17} />Exportar movimentações em CSV <ArrowRight size={16} /></button>
+            <button
+              type="button"
+              className="danger"
+              onClick={async () => { try { await api('/auth/logout', { method: 'POST' }) } finally { setSessionToken(null); setModal(null); setState(null) } }}
+            >
+              <LogOut size={17} />Sair da conta <ArrowRight size={16} />
+            </button>
+          </div>
+          <p className="profile-privacy"><ShieldCheck size={16} />Seus dados são isolados por conta nesta instalação do Granaê. Não há conexão bancária.</p>
+        </Modal>
+      )}
+
+      {pendingRemove && (
+        <ConfirmDialog
+          title={pendingRemove.title}
+          description={pendingRemove.description}
+          confirmLabel="Confirmar"
+          onCancel={() => setPendingRemove(null)}
+          onConfirm={async () => {
+            const path = pendingRemove.path
+            setPendingRemove(null)
+            try {
+              await api(path, { method: 'DELETE' })
+              await refresh()
+              setAnalysis({})
+              showToast('Removido com segurança.')
+            } catch (err) {
+              showToast((err as Error).message, 'error')
+            }
+          }}
+        />
+      )}
+
+      {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+    </div>
+  )
+}
+
