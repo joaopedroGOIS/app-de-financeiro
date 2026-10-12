@@ -1,6 +1,6 @@
 import { Plus, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { currency } from '../data'
+import { currency, displayDate } from '../data'
 import { Button, Card, EmptyState } from '../ui'
 import { EntryRow } from './Dashboard'
 import type { PageProps } from './shared'
@@ -22,6 +22,13 @@ export function EntriesPage({ state, month, query, entryFilter, setQuery, setEnt
   const filtered = monthEntries.filter(entry =>
     (entryFilter === 'all' || entry.type === entryFilter) &&
     `${entry.title} ${entry.category} ${state.accounts.find(account => account.id === entry.accountId)?.name ?? ''}`.toLocaleLowerCase('pt-BR').includes(needle))
+  const sortedEntries = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
+  const dayGroups = sortedEntries.reduce((groups, entry) => {
+    const entries = groups.get(entry.date) ?? []
+    entries.push(entry)
+    groups.set(entry.date, entries)
+    return groups
+  }, new Map<string, typeof sortedEntries>())
   const openEntry = () => { if (!state.accounts.length) return go('accounts'); editEntry(null); open('entry') }
   const addButton = <Button onClick={openEntry}><Plus size={18} />Nova movimentação</Button>
 
@@ -53,15 +60,25 @@ export function EntriesPage({ state, month, query, entryFilter, setQuery, setEnt
           </div>
         </div>
         {filtered.length ? (
-          <div className="entry-list">
-            {filtered.map(entry => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                account={state.accounts.find(account => account.id === entry.accountId)?.name ?? 'Conta'}
-                onEdit={() => { editEntry(entry); open('entry') }}
-                onRemove={() => requestRemove({ path: `/entries/${entry.id}`, title: 'Arquivar movimentação', description: `Arquivar “${entry.title}”? O registro fica preservado no histórico do servidor, mas deixa de compor seus saldos.` })}
-              />
+          <div className="entry-day-groups">
+            {[...dayGroups].map(([date, entries]) => (
+              <section className="entry-day-group" key={date} aria-label={`Movimentações em ${displayDate(date)}`}>
+                <div className="entry-day-heading">
+                  <h4>{displayDate(date)}</h4>
+                  <span>{entries.length} {entries.length === 1 ? 'lançamento' : 'lançamentos'}</span>
+                </div>
+                <div className="entry-list">
+                  {entries.map(entry => (
+                    <EntryRow
+                      key={entry.id}
+                      entry={entry}
+                      account={state.accounts.find(account => account.id === entry.accountId)?.name ?? 'Conta'}
+                      onEdit={() => { editEntry(entry); open('entry') }}
+                      onRemove={() => requestRemove({ path: `/entries/${entry.id}`, title: 'Arquivar movimentação', description: `Arquivar “${entry.title}”? O registro fica preservado no histórico do servidor, mas deixa de compor seus saldos.` })}
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         ) : (

@@ -1,7 +1,7 @@
 import { Activity, ArrowRight, Check, CircleHelp, Pencil, Plus, Sparkles, Target, Trash2 } from 'lucide-react'
 import { currency, displayDate, percent } from '../data'
 import type { Analysis, Goal } from '../data'
-import { Badge, Button, EmptyState, ProgressBar, rarityOf } from '../ui'
+import { Badge, Button, EmptyState, GoalCard, ProgressBar, rarityOf } from '../ui'
 import type { PageProps } from './shared'
 
 export function GoalsPage({ state, analysis, analysisLoading, analyze, open, editGoal, contributeTo, requestRemove }: PageProps & {
@@ -38,27 +38,31 @@ export function GoalsPage({ state, analysis, analysisLoading, analyze, open, edi
             const result = analysis[goal.id]
             const rarity = rarityOf(result?.difficulty)
             return (
-              <article className="tile goal-tile" key={goal.id}>
-                <div className="tile-top">
-                  <span className="goal-icon">{goal.icon}</span>
+              <GoalCard
+                key={goal.id}
+                className="tile goal-tile"
+                title={goal.title}
+                icon={goal.icon}
+                kind={<Badge tone={goal.kind === 'sonho' ? 'primary' : 'neutral'}>{goal.kind === 'sonho' ? 'Sonho' : 'Meta'}</Badge>}
+                description={<span className="goal-deadline">{goal.deadline ? `Até ${displayDate(goal.deadline)}` : 'Sem prazo definido'}</span>}
+                progress={progress}
+                actions={(
                   <div className="tile-actions">
                     <button type="button" className="icon-button" onClick={() => { editGoal(goal); open('goal') }} aria-label={`Editar ${goal.title}`} title="Editar"><Pencil size={16} /></button>
                     <button type="button" className="icon-button danger" onClick={() => requestRemove({ path: `/goals/${goal.id}`, title: 'Arquivar objetivo', description: `Arquivar “${goal.title}”? O histórico de contribuições e marcos será preservado no servidor.` })} aria-label={`Arquivar ${goal.title}`} title="Arquivar"><Trash2 size={16} /></button>
                   </div>
-                </div>
-                <Badge tone={goal.kind === 'sonho' ? 'primary' : 'neutral'}>{goal.kind === 'sonho' ? 'Sonho' : 'Meta'}</Badge>
-                <h3>{goal.title}</h3>
-                <p className="goal-deadline">{goal.deadline ? `Até ${displayDate(goal.deadline)}` : 'Sem prazo definido'}</p>
+                )}
+              >
                 <div className="goal-values">
                   <strong>{currency(goal.savedCents)}</strong>
                   <span>de {currency(goal.targetCents)}</span>
                 </div>
-                <ProgressBar value={progress} tone={done ? 'success' : ''} />
+                <ProgressBar value={progress} tone={done ? 'success' : ''} label={`Progresso de ${goal.title}`} />
                 <div className="goal-progress-label">
                   <span>{progress}% concluído</span>
                   <span>Faltam {currency(Math.max(0, goal.targetCents - goal.savedCents))}</span>
                 </div>
-                <div className="milestones">
+                <div className="milestones" aria-label="Marcos de progresso do objetivo">
                   {[10, 25, 50, 75, 100].map(milestone => (
                     <span key={milestone} className={`milestone ${goal.milestones.includes(milestone) ? 'reached' : ''}`} title={`Marco de ${milestone}%`}>
                       {goal.milestones.includes(milestone) ? <Check size={13} /> : milestone}
@@ -78,7 +82,7 @@ export function GoalsPage({ state, analysis, analysisLoading, analyze, open, edi
                     {result && <AnalysisResult result={result} rarity={rarity} />}
                   </div>
                 )}
-              </article>
+              </GoalCard>
             )
           })}
         </div>

@@ -14,24 +14,24 @@
   --font-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-display: 'Manrope', 'DM Sans', system-ui, sans-serif;
 
-  --text-2xs: 10px;
-  --text-xs: 11px;
-  --text-sm: 12.5px;
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
   --text-md: 14px;
   --text-lg: 17px;
   --text-xl: 22px;
-  --text-2xl: 28px;
-  --text-3xl: 34px;
+  --text-2xl: 30px;
+  --text-3xl: 36px;
 
   --leading-tight: 1.2;
   --leading-normal: 1.55;
 
   /* Raios */
-  --radius-xs: 8px;
+  --radius-xs: 7px;
   --radius-sm: 10px;
   --radius-md: 14px;
   --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-xl: 22px;
   --radius-pill: 999px;
 
   /* Espaçamento */
@@ -43,11 +43,12 @@
   --space-6: 24px;
   --space-7: 32px;
   --space-8: 44px;
+  --space-9: 56px;
 
   /* Estrutura */
-  --sidebar-width: 264px;
+  --sidebar-width: 256px;
   --topbar-height: 72px;
-  --content-max: 1440px;
+  --content-max: 1480px;
   --bottom-nav-height: 66px;
 
   /* Movimento */
@@ -62,89 +63,89 @@
    TEMA ESCURO — ROXO
    -------------------------------------------------------------------------- */
 :root[data-theme='dark'] {
-  --bg: #100d1c;
-  --bg-gradient-a: #16102a;
-  --bg-gradient-b: #100d1c;
-  --surface: #1b1630;
-  --surface-raised: #251d3d;
-  --surface-sunken: #16112a;
-  --surface-hover: #221a3a;
+  --bg: #111116;
+  --bg-gradient-a: #15151d;
+  --bg-gradient-b: #111116;
+  --surface: #1a1a23;
+  --surface-raised: #22222e;
+  --surface-sunken: #15151c;
+  --surface-hover: #252530;
 
-  --border: #352b4d;
-  --border-subtle: #2a2140;
-  --border-strong: #463962;
-  --input-border: #735fb3;
+  --border: #30303b;
+  --border-subtle: #292933;
+  --border-strong: #454550;
+  --input-border: #484856;
 
-  --text: #f8f7fc;
-  --text-secondary: #b7b0ca;
-  --text-muted: #8c84a6;
-  --text-inverse: #1a1430;
+  --text: #f5f3ff;
+  --text-secondary: #a1a1b5;
+  --text-muted: #8f8fa1;
+  --text-inverse: #111116;
 
   --primary: #8b5cf6;
-  --primary-strong: #7c3aed;
+  --primary-strong: #5b21b6;
+  --primary-action-hover: #6d28d9;
   --primary-hover: #a78bfa;
-  /* Roxo claro garantido para texto pequeno (6,4:1 sobre superfície). */
   --primary-text: #a78bfa;
-  --primary-soft: #2a2145;
-  --primary-soft-strong: #382a5e;
+  --primary-soft: #251d35;
+  --primary-soft-strong: #35264f;
   --on-primary: #ffffff;
 
-  /* Secundárias: violeta e lavanda */
+  /* Roxos de apoio, em tons discretos para uma interface financeira. */
   --accent: #a78bfa;
   --accent-2: #c4b5fd;
-  --accent-soft: #2c2247;
+  --accent-soft: #292238;
 
   --success: #34d399;
-  --success-soft: #12332a;
+  --success-soft: #142d27;
   --warning: #fbbf24;
-  --warning-soft: #33280f;
-  --danger: #f87171;
-  --danger-soft: #39191f;
-  --info: #60a5fa;
-  --info-soft: #16233d;
+  --warning-soft: #302713;
+  --danger: #fb7185;
+  --danger-soft: #351d27;
+  --info: #7c9cf5;
+  --info-soft: #1c2437;
 
-  --overlay: rgba(9, 7, 18, .74);
-  --shadow-sm: 0 1px 2px rgba(6, 4, 14, .5);
-  --shadow-md: 0 10px 28px rgba(6, 4, 14, .45);
-  --shadow-lg: 0 28px 70px rgba(6, 4, 14, .6);
+  --overlay: rgba(7, 7, 10, .76);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .22);
+  --shadow-md: 0 12px 28px rgba(0, 0, 0, .24);
+  --shadow-lg: 0 28px 72px rgba(0, 0, 0, .38);
   --focus-ring: #a78bfa;
 
-  /* Superfícies de destaque (hero, gamificação) */
-  --hero-from: #2a1b52;
-  --hero-via: #4c2a8f;
-  --hero-to: #6d28d9;
-  --hero-text: #f6f3ff;
-  --hero-muted: #d9ccff;
-  --hero-border: rgba(196, 181, 253, .22);
-  --hero-fill: rgba(255, 255, 255, .1);
-  --hero-success: #8ff0cd;
+  /* Superfícies de destaque: violetas suaves, sem brilho neon. */
+  --hero-from: #1b1924;
+  --hero-via: #252032;
+  --hero-to: #302543;
+  --hero-text: #f5f3ff;
+  --hero-muted: #c4bfd2;
+  --hero-border: rgba(167, 139, 250, .18);
+  --hero-fill: rgba(255, 255, 255, .045);
+  --hero-success: #6ee7b7;
 
   /* Categorias de gasto */
   --cat-alimentacao: #fb923c;
-  --cat-alimentacao-soft: #3a2515;
+  --cat-alimentacao-soft: #33251a;
   --cat-moradia: #a78bfa;
-  --cat-moradia-soft: #2b2246;
-  --cat-transporte: #60a5fa;
-  --cat-transporte-soft: #172742;
+  --cat-moradia-soft: #292238;
+  --cat-transporte: #7ca7ff;
+  --cat-transporte-soft: #1d293e;
   --cat-compras: #f472b6;
-  --cat-compras-soft: #3a1a2c;
+  --cat-compras-soft: #351d2d;
   --cat-saude: #34d399;
-  --cat-saude-soft: #12332a;
+  --cat-saude-soft: #142d27;
   --cat-lazer: #c084fc;
-  --cat-lazer-soft: #2f1f45;
+  --cat-lazer-soft: #2f2140;
   --cat-educacao: #fbbf24;
-  --cat-educacao-soft: #33280f;
-  --cat-outros: #94a3b8;
-  --cat-outros-soft: #242b3a;
+  --cat-educacao-soft: #302713;
+  --cat-outros: #a1a1b5;
+  --cat-outros-soft: #282832;
   --cat-default: #a78bfa;
-  --cat-default-soft: #2b2246;
+  --cat-default-soft: #292238;
 
   /* Gráficos */
-  --chart-grid: #2a2140;
-  --chart-axis: #8c84a6;
-  --chart-area-from: rgba(139, 92, 246, .38);
+  --chart-grid: #30303b;
+  --chart-axis: #a1a1b5;
+  --chart-area-from: rgba(139, 92, 246, .22);
   --chart-area-to: rgba(139, 92, 246, 0);
-  --chart-negative: #fb923c;
+  --chart-negative: #fb7185;
 }
 
 /* --------------------------------------------------------------------------
@@ -171,6 +172,7 @@
 
   --primary: #2563eb;
   --primary-strong: #1d4ed8;
+  --primary-action-hover: #1e40af;
   --primary-hover: #1e40af;
   /* Azul profundo garantido para texto pequeno (6,7:1 sobre superfície). */
   --primary-text: #1d4ed8;

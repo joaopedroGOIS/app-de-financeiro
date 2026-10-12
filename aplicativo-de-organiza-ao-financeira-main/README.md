@@ -42,10 +42,10 @@ Ainda não há integração bancária, sincronização com Base44/Supabase, recu
 
 Dois temas oficiais, definidos uma única vez em `src/styles/tokens.css`:
 
-- **Escuro — Roxo:** fundo `#100D1C`, superfície `#1B1630`, cards elevados `#251D3D`, roxo principal `#8B5CF6`, roxo claro `#A78BFA`, texto `#F8F7FC`, texto secundário `#B7B0CA`, bordas `#352B4D`.
+- **Escuro — Roxo (padrão):** fundo `#111116`, superfície `#1A1A23`, cards elevados `#22222E`, roxo principal `#8B5CF6`, roxo luminoso `#A78BFA`, roxo profundo `#5B21B6`, texto `#F5F3FF`, texto secundário `#A1A1B5`, positivo `#34D399`, alertas `#FB7185`, bordas `#30303B`.
 - **Claro — Azul:** fundo `#F4F7FC`, superfície `#FFFFFF`, azul principal `#2563EB`, azul claro `#60A5FA`, texto `#172033`, texto secundário `#64748B`, bordas `#E2E8F0`.
 
-Nenhum componente usa cor fixa: tudo é `var(--token)`, o que torna a troca instantânea e impede tema "pela metade". Alguns tons foram ajustados em relação à referência para atingir contraste mínimo — o par mais fraco é 4,75:1 no escuro e 4,51:1 no claro (WCAG AA para texto) e 3:1 em ícones, gráficos e bordas de campo.
+As cores semânticas vivem em `src/styles/tokens.css`, permitindo que a troca de tema repinte a interface inteira. Texto, superfícies, estados e foco têm tokens próprios; o layout mantém foco visível e respeita `prefers-reduced-motion`.
 
 **Seletor** (perfil → *Aparência do aplicativo*, e também no menu do cabeçalho):
 
@@ -59,7 +59,7 @@ Nenhum componente usa cor fixa: tudo é `var(--token)`, o que torna a troca inst
 - A preferência é gravada em `localStorage` e, com sessão ativa, sincronizada com a conta via `PATCH /api/preferences` (tabela `user_preferences`, coluna `theme` nula até a primeira escolha) — assim vale entre dispositivos.
 - Um script inline em `index.html` aplica o tema salvo antes da primeira pintura, evitando mostrar o tema errado no carregamento.
 
-Componentes padronizados em `src/ui.tsx`: botões, cartões, badges (incluindo raridades), indicadores, barras de progresso, campos, modais, confirmações, toasts, estados vazios, gráfico de linha e rosca em SVG próprio (sem dependência nova) e os seletores de tema. Ícones são `lucide-react`; emojis aparecem apenas onde são dados do usuário (símbolo de objetivo).
+Componentes reutilizáveis em `src/ui.tsx`: cabeçalhos de página, botões, cartões financeiros e de metas, molde visual de missão, badges (incluindo raridades), anel e barra de progresso, campos, modais, estados de carregamento/erro/vazio, confirmações, toasts, gráfico de linha e rosca em SVG próprio (sem dependência nova) e seletores de tema. O cartão de missão é somente uma peça visual e não é preenchido: este repositório ainda não possui dados ou motor de missões. Ícones são `lucide-react`; emojis aparecem apenas onde são dados do usuário (símbolo de objetivo).
 
 ## Arquitetura
 

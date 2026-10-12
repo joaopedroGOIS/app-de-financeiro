@@ -21,7 +21,7 @@ export function WealthPage({ state, go, open, editAsset, requestRemove }: PagePr
           <small>PATRIMÔNIO LÍQUIDO REGISTRADO</small>
           <strong>{currency(state.stats.netWorthCents)}</strong>
           <p>Saldos de contas + bens cadastrados − dívidas cadastradas. Bens físicos não viram dinheiro disponível automaticamente.</p>
-          <button type="button" className="text-action" onClick={() => document.getElementById('wealth-items')?.scrollIntoView({ behavior: 'smooth' })}>Ver bens e dívidas <ArrowRight size={15} /></button>
+          <button type="button" className="text-action" onClick={() => { const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'; document.getElementById('wealth-items')?.scrollIntoView({ behavior }) }}>Ver bens e dívidas <ArrowRight size={15} /></button>
         </article>
       </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
-import { Check, ChevronLeft, ChevronRight, Monitor, Moon, Sun, TrendingUp, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, CircleAlert, Monitor, Moon, Sun, Target, TrendingUp, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { THEME_MODES, resolveTheme, subscribeSystemTheme } from './theme'
 import type { ThemeMode } from './theme'
@@ -36,6 +36,38 @@ export function Brand({ light = false }: { light?: boolean }) {
     <div className={`brand ${light ? 'brand-light' : ''}`}>
       <span className="brand-symbol"><TrendingUp size={21} strokeWidth={3} /></span>
       <span>grana<span className="brand-accent">ê</span><span className="brand-dot">.</span></span>
+    </div>
+  )
+}
+
+/** Cabeçalho compartilhado das páginas, para manter hierarquia e ações consistentes. */
+export function PageHeading({ eyebrow, title, description, action, className = '' }: { eyebrow: string; title: string; description: string; action?: ReactNode; className?: string }) {
+  return (
+    <div className={`page-heading ${className}`.trim()}>
+      <div>
+        <div className="eyebrow">{eyebrow}</div>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </div>
+      {action && <div className="page-heading-actions">{action}</div>}
+    </div>
+  )
+}
+
+export function LoadingScreen({ message = 'Preparando seu espaço...' }: { message?: string }) {
+  return (
+    <main className="loading-screen" aria-busy="true">
+      <Brand />
+      <div className="loading-pulse" role="status" aria-live="polite">{message}</div>
+    </main>
+  )
+}
+
+export function InlineError({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`error-message ${className}`.trim()} role="alert">
+      <CircleAlert size={16} aria-hidden="true" />
+      <span>{children}</span>
     </div>
   )
 }
@@ -91,12 +123,97 @@ export const rarityOf = (difficulty?: string) => {
   return difficulty ? map[difficulty] : undefined
 }
 
-export function ProgressBar({ value, tone = '', size = '', onHero = false }: { value: number; tone?: '' | 'success' | 'warning' | 'danger'; size?: '' | 'thin' | 'thick'; onHero?: boolean }) {
+export function ProgressBar({ value, tone = '', size = '', onHero = false, label }: { value: number; tone?: '' | 'success' | 'warning' | 'danger'; size?: '' | 'thin' | 'thick'; onHero?: boolean; label?: string }) {
   const width = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0))
   return (
-    <div className={`progress ${tone} ${size} ${onHero ? 'on-hero' : ''}`} role="progressbar" aria-valuenow={Math.round(width)} aria-valuemin={0} aria-valuemax={100}>
+    <div className={`progress ${tone} ${size} ${onHero ? 'on-hero' : ''}`} role="progressbar" aria-label={label} aria-valuenow={Math.round(width)} aria-valuemin={0} aria-valuemax={100}>
       <div style={{ width: `${width}%` }} />
     </div>
+  )
+}
+
+export function ProgressRing({ value, label, size = 64, strokeWidth = 6, children }: {
+  value: number; label: string; size?: number; strokeWidth?: number; children?: ReactNode
+}) {
+  const boundedValue = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0))
+  const radius = 50 - strokeWidth / 2
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference * (1 - boundedValue / 100)
+  return (
+    <span
+      className="progress-ring"
+      style={{ width: size, height: size }}
+      role="progressbar"
+      aria-label={label}
+      aria-valuenow={Math.round(boundedValue)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuetext={`${Math.round(boundedValue)}%`}
+    >
+      <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <circle className="progress-ring-track" cx="50" cy="50" r={radius} strokeWidth={strokeWidth} />
+        <circle
+          className="progress-ring-value"
+          cx="50"
+          cy="50"
+          r={radius}
+          strokeWidth={strokeWidth}
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={offset}
+          transform="rotate(-90 50 50)"
+        />
+      </svg>
+      <span className="progress-ring-label">{children ?? `${Math.round(boundedValue)}%`}</span>
+    </span>
+  )
+}
+
+/** Cartão de objetivo compartilhado; os valores e progresso vêm sempre do estado real. */
+export function GoalCard({ title, icon, kind, description, progress, actions, children, className = '', compact = false }: {
+  title: string; icon?: ReactNode; kind?: ReactNode; description?: ReactNode; progress: number; actions?: ReactNode; children?: ReactNode; className?: string; compact?: boolean
+}) {
+  return (
+    <article className={`goal-card ${compact ? 'compact' : ''} ${className}`.trim()}>
+      <header className="goal-card-header">
+        {icon && <span className="goal-card-icon" aria-hidden="true">{icon}</span>}
+        <div className="goal-card-info">
+          {kind && <div className="goal-card-kind">{kind}</div>}
+          <h3>{title}</h3>
+          {description && <div className="goal-card-description">{description}</div>}
+        </div>
+        <ProgressRing value={progress} label={`Progresso de ${title}`} size={compact ? 48 : 58} strokeWidth={5}>
+          <span aria-hidden="true">{Math.round(Math.max(0, Math.min(100, progress)))}%</span>
+        </ProgressRing>
+        {actions && <div className="goal-card-actions">{actions}</div>}
+      </header>
+      {children && <div className="goal-card-content">{children}</div>}
+    </article>
+  )
+}
+
+/** Molde visual, sem estado de jogo embutido; só renderiza missões fornecidas pela aplicação. */
+export function MissionCard({ title, description, icon: Icon = Target, status, progress, action, className = '' }: {
+  title: string; description: string; icon?: LucideIcon; status?: ReactNode; progress?: number; action?: ReactNode; className?: string
+}) {
+  const boundedProgress = progress === undefined ? undefined : Math.max(0, Math.min(100, Number.isFinite(progress) ? progress : 0))
+  return (
+    <article className={`mission-card ${className}`.trim()}>
+      <span className="mission-card-icon"><Icon size={19} aria-hidden="true" /></span>
+      <div className="mission-card-body">
+        <div className="mission-card-heading">
+          <h3>{title}</h3>
+          {status && <span className="mission-card-status">{status}</span>}
+        </div>
+        <p>{description}</p>
+        {boundedProgress !== undefined && (
+          <div className="mission-card-progress">
+            <ProgressBar value={boundedProgress} label={`Progresso da missão: ${title}`} size="thin" />
+            <span>{Math.round(boundedProgress)}%</span>
+          </div>
+        )}
+      </div>
+      {action && <div className="mission-card-action">{action}</div>}
+    </article>
   )
 }
 
@@ -136,15 +253,15 @@ export function EmptyState({ icon, title, text, action }: { icon: ReactNode; tit
   )
 }
 
-export function Modal({ title, subtitle, onClose, children, wide = false }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+export function Modal({ title, subtitle, onClose, children, wide = false, className = '', immersiveOnMobile = false }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode; wide?: boolean; className?: string; immersiveOnMobile?: boolean }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
   return (
-    <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
-      <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+    <div className={`modal-backdrop ${immersiveOnMobile ? 'immersive-on-mobile' : ''}`} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
+      <div className={`modal ${wide ? 'wide' : ''} ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title}>
         <IconButton label="Fechar" icon={X} className="modal-close" onClick={onClose} />
         <h2>{title}</h2>
         {subtitle && <p className="modal-subtitle">{subtitle}</p>}
