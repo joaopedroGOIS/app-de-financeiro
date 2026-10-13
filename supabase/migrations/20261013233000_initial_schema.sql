@@ -280,3 +280,18 @@ grant insert on public.difficulty_assessments to authenticated;
 grant update(name) on public.profiles to authenticated;
 grant execute on function public.create_entry(uuid,text,text,text,bigint,date,text,text) to authenticated;
 grant execute on function public.create_contribution(uuid,bigint,date,text,text) to authenticated;
+
+create or replace function public.archive_entry(p_entry_id uuid) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare v_user uuid := (select auth.uid()); v_date date;
+begin
+  if v_user is null then raise exception 'Authentication required' using errcode='42501'; end if;
+  update public.entries set archived_at=now()
+    where id=p_entry_id and user_id=v_user and archived_at is null returning date into v_date;
+  if not found then raise exception 'Movimentação não encontrada' using errcode='P0002'; end if;
+  insert into public.gamification_events(user_id,event_type,business_date,idempotency_key,entity_type,entity_id)
+    values(v_user,'financial_entry_archived',v_date,'entry:'||p_entry_id::text||':archived','entry',p_entry_id)
+    on conflict(user_id,idempotency_key) do nothing;
+  return pg_catalog.jsonb_build_object('ok',true);
+end; $$;
+grant execute on function public.archive_entry(uuid) to authenticated;
