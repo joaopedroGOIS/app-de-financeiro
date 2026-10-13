@@ -40,7 +40,8 @@ export class ApiError extends Error {
 
 const SESSION_KEY = 'granae:supabase-session'
 let sessionToken: string | null = null
-try { sessionToken = sessionStorage.getItem(SESSION_KEY) } catch { /* Storage may be unavailable in embedded previews. */ }
+let refreshToken: string | null = null
+try { sessionToken = sessionStorage.getItem(SESSION_KEY); refreshToken = sessionStorage.getItem('granae:supabase-refresh') } catch { /* Storage may be unavailable in embedded previews. */ }
 
 const env = import.meta.env as ImportMetaEnv & { VITE_SUPABASE_URL?: string; VITE_SUPABASE_PUBLISHABLE_KEY?: string }
 const projectUrl = env.VITE_SUPABASE_URL?.replace(/\/$/, '')
@@ -51,10 +52,24 @@ function ensureConfig() {
 }
 export function setSessionToken(token: string | null) {
   sessionToken = token
+  if (!token) refreshToken = null
   try {
     if (token) sessionStorage.setItem(SESSION_KEY, token)
-    else sessionStorage.removeItem(SESSION_KEY)
+    else { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem('granae:supabase-refresh') }
   } catch { /* The in-memory token still keeps this tab signed in. */ }
+}
+function saveAuthSession(session: any) {
+  setSessionToken(session.access_token)
+  refreshToken = session.refresh_token ?? refreshToken
+  try { if (refreshToken) sessionStorage.setItem('granae:supabase-refresh', refreshToken) } catch { /* Keep the current in-memory session. */ }
+}
+async function renewSession() {
+  if (!refreshToken) return false
+  try {
+    const session = await authRequest('token?grant_type=refresh_token', { refresh_token: refreshToken })
+    saveAuthSession(session)
+    return true
+  } catch { setSessionToken(null); return false }
 }
 const currentDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 function headers(authenticated = true, extra: HeadersInit = {}) {
@@ -75,26 +90,30 @@ async function readResponse(response: Response) {
   return payload
 }
 async function authRequest(path: string, body?: unknown, authenticated = false) {
-  const response = await fetch(`${projectUrl}/auth/v1/${path}`, {
+  const makeRequest = () => fetch(`${projectUrl}/auth/v1/${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: headers(authenticated, body === undefined ? {} : { 'Content-Type': 'application/json' }),
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   })
+  let response = await makeRequest()
+  if (response.status === 401 && authenticated && await renewSession()) response = await makeRequest()
   return readResponse(response)
 }
 async function rest<T = any>(table: string, method = 'GET', query = '', body?: unknown, opts: { token?: string; prefer?: string } = {}): Promise<T> {
   ensureConfig()
   const token = opts.token ?? sessionToken
   if (!token) throw new ApiError('Sessão encerrada. Entre novamente.', 401, 'SESSION_MISSING')
-  const response = await fetch(`${projectUrl}/rest/v1/${table}${query ? `?${query}` : ''}`, {
+  const makeRequest = () => fetch(`${projectUrl}/rest/v1/${table}${query ? `?${query}` : ''}`, {
     method,
     headers: headers(true, {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${sessionToken ?? token}`,
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...(opts.prefer || (body !== undefined && method !== 'DELETE') ? { Prefer: opts.prefer ?? 'return=representation' } : {}),
     }),
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   })
+  let response = await makeRequest()
+  if (response.status === 401 && await renewSession()) response = await makeRequest()
   return await readResponse(response) as T
 }
 const query = (values: Record<string, string>) => new URLSearchParams(values).toString()
@@ -153,7 +172,8 @@ function parseBody(options: RequestInit) {
 }
 const idempotencyKey = (options: RequestInit) => new Headers(options.headers).get('Idempotency-Key') || crypto.randomUUID()
 async function difficulty(goalId: string): Promise<Analysis> {
-  const [goalRows, contributionRows, entryRows] = await Promise.all([
+  const [user, goalRows, contributionRows, entryRows] = await Promise.all([
+    authRequest('user',undefined,true),
     rest('goals','GET',query({select:'*',id:`eq.${goalId}`,archived_at:'is.null',limit:'1'})),
     rest('contributions','GET',query({select:'amount_cents',goal_id:`eq.${goalId}`})),
     rest('entries','GET',query({select:'type,amount_cents,date',archived_at:'is.null',type:'in.(income,expense)'})),
@@ -195,7 +215,8 @@ async function difficulty(goalId: string): Promise<Analysis> {
     }
   }
   const inputs={remainingCents:Math.max(0,Number(goal.target_cents)-saved),deadline:goal.deadline,entries:financialEntries.map(e=>({type:e.type,amountCents:Number(e.amount_cents),date:e.date})),today}
-  await rest('difficulty_assessments','POST','',{user_id:user.id,goal_id:goal.id,difficulty_code:result.status==='ready'?result.difficulty:result.status,inputs_json:inputs,result_json:result,confidence_level:result.confidence,formula_version:'difficulty_formula_v1'},{prefer:'return=minimal'})
+  const previous=await rest<any[]>('difficulty_assessments','GET',query({select:'inputs_json',goal_id:`eq.${goal.id}`,order:'calculated_at.desc',limit:'1'}))
+  if (JSON.stringify(previous[0]?.inputs_json)!==JSON.stringify(inputs)) await rest('difficulty_assessments','POST','',{user_id:user.id,goal_id:goal.id,difficulty_code:result.status==='ready'?result.difficulty:result.status,inputs_json:inputs,result_json:result,confidence_level:result.confidence,formula_version:'difficulty_formula_v1'},{prefer:'return=minimal'})
   return {...result,formulaVersion:'difficulty_formula_v1'}
 }
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
@@ -204,13 +225,13 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   if (path==='/auth/register') {
     const data=await authRequest('signup',{email:body.email,password:body.password,data:{name:body.name}})
     if (!data.session?.access_token) throw new ApiError('Conta criada. Confirme seu e-mail e depois entre no Granaê.',401,'EMAIL_CONFIRMATION_REQUIRED')
-    setSessionToken(data.session.access_token)
+    saveAuthSession(data.session)
     return {ok:true,sessionToken:data.session.access_token} as T
   }
   if (path==='/auth/login') {
     const data=await authRequest('token?grant_type=password',{email:body.email,password:body.password})
     if (!data.access_token) throw new ApiError('Não foi possível iniciar sua sessão.',401)
-    setSessionToken(data.access_token)
+    saveAuthSession(data)
     return {ok:true,sessionToken:data.access_token} as T
   }
   if (path==='/auth/logout') {
