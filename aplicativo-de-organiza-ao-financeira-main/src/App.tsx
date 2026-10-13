@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowDownLeft, ArrowLeft, ArrowRight, Award, BarChart3, Check, ChevronRight, Download, Gem, LogOut, LockKeyhole, Plus, ShieldCheck, Sparkles, Target, Wallet } from 'lucide-react'
+import { ArrowDownLeft, ArrowLeft, ArrowRight, Award, BarChart3, Check, ChevronRight, Download, Gem, LogOut, LockKeyhole, Plus, Search, ShieldCheck, Sparkles, Target, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { api, ApiError, dateToday, json, monthName, monthShift, setSessionToken, signed } from './data'
+import { api, ApiError, currency, dateToday, json, monthName, monthShift, setSessionToken, signed } from './data'
 import type { Account, Analysis, Asset, Entry, Goal, State } from './data'
 import { useTheme } from './theme'
 import type { ThemeMode } from './theme'
@@ -136,6 +136,8 @@ export default function App() {
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null)
   const [formError, setFormError] = useState('')
   const [query, setQuery] = useState('')
+    const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
+  const globalSearchRef = useRef<HTMLInputElement | null>(null)
   const [entryFilter, setEntryFilter] = useState<EntryFilter>('all')
   const [profileName, setProfileName] = useState('')
   const [pendingRemove, setPendingRemove] = useState<{ path: string; title: string; description: string } | null>(null)
@@ -166,6 +168,20 @@ export default function App() {
   }
 
   useEffect(() => { boot() }, [])
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setGlobalSearchOpen(true)
+        requestAnimationFrame(() => globalSearchRef.current?.focus())
+      }
+      if (event.key === 'Escape') setGlobalSearchOpen(false)
+    }
+    window.addEventListener('keydown', onShortcut)
+    return () => window.removeEventListener('keydown', onShortcut)
+  }, [])
+
 
   useEffect(() => {
     const syncPage = () => { setPage(pageFromHash()); setReturnTo(null) }
@@ -271,6 +287,18 @@ export default function App() {
 
   const firstName = state.user.name.split(' ')[0]
   const selected = nav.find(item => item.id === page)
+    const searchTerm = query.trim().toLocaleLowerCase('pt-BR')
+  const globalSearchResults = searchTerm ? [
+    ...state.entries.filter(item => `${item.title} ${item.category} ${item.note}`.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 4).map(item => ({ id: `entry-${item.id}`, title: item.title, detail: `${item.category} · ${currency(Math.abs(signed(item)))}`, destination: 'entries' as PageId, query: item.title })),
+    ...state.accounts.filter(item => `${item.name} ${item.type} ${item.description}`.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 3).map(item => ({ id: `account-${item.id}`, title: item.name, detail: `Conta · ${currency(item.balanceCents)}`, destination: 'accounts' as PageId, query: '' })),
+    ...state.goals.filter(item => item.title.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 3).map(item => ({ id: `goal-${item.id}`, title: item.title, detail: item.kind === 'sonho' ? 'Sonho' : 'Meta', destination: 'goals' as PageId, query: '' })),
+  ].slice(0, 7) : []
+  const openSearchResult = (result: (typeof globalSearchResults)[number]) => {
+    setQuery(result.query)
+    setEntryFilter('all')
+    setGlobalSearchOpen(false)
+    go(result.destination)
+  }
   const monthPicker = <MonthPicker label={monthName(month)} onPrevious={() => chooseMonth(-1)} onNext={() => chooseMonth(1)} />
   const createDashboardEntry = () => {
     if (!state.accounts.length) {
@@ -343,7 +371,38 @@ export default function App() {
             </nav>
           )}
           <div className="topbar-tools">
-            <span className="topbar-date">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                        <div className={`global-search ${globalSearchOpen ? 'is-open' : ''}`}>
+              <Search size={17} aria-hidden="true" />
+              <input
+                ref={globalSearchRef}
+                type="search"
+                placeholder="Buscar movimentações, contas, metas..."
+                value={query}
+                aria-label="Buscar movimentações, contas e metas"
+                aria-expanded={globalSearchOpen && !!searchTerm}
+                aria-controls="global-search-results"
+                onFocus={() => setGlobalSearchOpen(true)}
+                onBlur={() => setGlobalSearchOpen(false)}
+                onChange={event => { setQuery(event.target.value); setGlobalSearchOpen(true) }}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && globalSearchResults[0]) openSearchResult(globalSearchResults[0])
+                  if (event.key === 'Escape') { setGlobalSearchOpen(false); globalSearchRef.current?.blur() }
+                }}
+              />
+              <kbd>Ctrl K</kbd>
+              {globalSearchOpen && searchTerm && (
+                <div className="global-search-results" id="global-search-results" role="listbox" aria-label="Resultados da busca">
+                  {globalSearchResults.length ? globalSearchResults.map(result => (
+                    <button key={result.id} type="button" role="option" aria-selected="false" onMouseDown={event => event.preventDefault()} onClick={() => openSearchResult(result)}>
+                      <span className="global-search-result-icon"><Search size={14} /></span>
+                      <span><strong>{result.title}</strong><small>{result.detail}</small></span>
+                      <ArrowRight size={14} />
+                    </button>
+                  )) : <p className="global-search-empty">Nenhum resultado encontrado.</p>}
+                </div>
+              )}
+            </div>
+<span className="topbar-date">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
             <ThemeMenu mode={mode} onChange={changeTheme} />
             <button type="button" className="btn btn-outline btn-sm" onClick={downloadCSV} title="Exportar histórico em CSV">
               <Download size={15} /><span>Exportar</span>
