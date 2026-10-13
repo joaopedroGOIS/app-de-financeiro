@@ -268,11 +268,7 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
     await rest('entries','PATCH',query({id:`eq.${decodeURIComponent(entryId[1])}`,user_id:`eq.${user.id}`,archived_at:'is.null'}),{account_id:body.accountId,title:body.title,category:body.category,type:body.type,amount_cents:body.amountCents,date:body.date,note:body.note},{prefer:'return=minimal'})
     return {ok:true} as T
   }
-  if (entryId && method==='DELETE') {
-    const user=await authRequest('user',undefined,true)
-    await rest('entries','PATCH',query({id:`eq.${decodeURIComponent(entryId[1])}`,user_id:`eq.${user.id}`,archived_at:'is.null'}),{archived_at:new Date().toISOString()},{prefer:'return=minimal'})
-    return {ok:true} as T
-  }
+  if (entryId && method==='DELETE') return await rest('rpc/archive_entry','POST','',{p_entry_id:decodeURIComponent(entryId[1])}) as T
   const accountId=path.match(/^\/accounts\/([^/]+)$/)
   if (path==='/accounts' && method==='POST') {
     const user=await authRequest('user',undefined,true), result=await rest<any[]>('accounts','POST','',{user_id:user.id,name:body.name,type:body.type,opening_cents:body.openingCents,is_reserve:body.isReserve,description:body.description})
