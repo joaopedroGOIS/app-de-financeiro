@@ -295,3 +295,11 @@ begin
   return pg_catalog.jsonb_build_object('ok',true);
 end; $$;
 grant execute on function public.archive_entry(uuid) to authenticated;
+
+revoke all on function public.bootstrap_user() from public, anon, authenticated;
+revoke all on function public.touch_updated_at() from public, anon, authenticated;
+revoke all on function public.guard_goal_target() from public, anon, authenticated;
+revoke all on function public.reject_reward_ledger_mutation() from public, anon, authenticated;
+revoke all on function public.create_entry(uuid,text,text,text,bigint,date,text,text) from public, anon;
+revoke all on function public.create_contribution(uuid,bigint,date,text,text) from public, anon;
+revoke all on function public.archive_entry(uuid) from public, anon;
