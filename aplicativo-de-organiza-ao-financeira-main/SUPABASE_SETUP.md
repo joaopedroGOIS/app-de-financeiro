@@ -44,7 +44,7 @@ Na Vercel, a pasta `aplicativo-de-organiza-ao-financeira-main` deve ser a **Root
 
 ## Autenticação por e-mail
 
-O cadastro usa Supabase Auth. Se a confirmação de e-mail estiver ativada no projeto, o usuário precisa confirmar o endereço antes de entrar. Configure os URLs de redirecionamento permitidos em **Authentication → URL Configuration** para os domínios locais e de produção do app.
+O cadastro usa Supabase Auth. O projeto conectado está configurado com Site URL `https://app-de-financeiro.vercel.app` e callbacks permitidos `https://app-de-financeiro.vercel.app/**` e `http://localhost:5173/**`. Se a confirmação de e-mail estiver ativada, o usuário precisa confirmar o endereço antes de entrar. Ao mudar de domínio, atualize **Authentication → URL Configuration** no Dashboard.
 
 ## Dados SQLite existentes
 
