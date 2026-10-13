@@ -63,13 +63,20 @@ function saveAuthSession(session: any) {
   refreshToken = session.refresh_token ?? refreshToken
   try { if (refreshToken) sessionStorage.setItem('granae:supabase-refresh', refreshToken) } catch { /* Keep the current in-memory session. */ }
 }
+let refreshInFlight: Promise<boolean> | null = null
 async function renewSession() {
   if (!refreshToken) return false
-  try {
-    const session = await authRequest('token?grant_type=refresh_token', { refresh_token: refreshToken })
-    saveAuthSession(session)
-    return true
-  } catch { setSessionToken(null); return false }
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      try {
+        const session = await authRequest('token?grant_type=refresh_token', { refresh_token: refreshToken })
+        saveAuthSession(session)
+        return true
+      } catch { setSessionToken(null); return false }
+      finally { refreshInFlight = null }
+    })()
+  }
+  return refreshInFlight
 }
 const currentDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 function headers(authenticated = true, extra: HeadersInit = {}) {
