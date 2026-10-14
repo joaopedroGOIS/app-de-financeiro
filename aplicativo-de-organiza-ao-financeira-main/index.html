@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#111116" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Granaê" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/granae-icon.svg" />
+    <link rel="apple-touch-icon" href="/granae-icon.svg" />
     <meta name="description" content="Granaê: sua grana, seu jogo, sua evolução. Organização financeira de um jeito mais leve." />
     <meta name="color-scheme" content="dark light" />
     <title>Granaê — Sua grana. Seu jogo. Sua evolução.</title>
@@ -28,5 +35,14 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("/sw.js").catch(function (error) {
+            console.error("Não foi possível ativar o modo instalável:", error)
+          })
+        })
+      }
+    </script>
   </body>
 </html>
