@@ -11,6 +11,7 @@ import { WealthPage } from './pages/Wealth'
 import { GoalsPage } from './pages/Goals'
 import { JourneyPage } from './pages/Journey'
 import { ThemeSelector, ThemeMenu, Brand, MissionCard, ProgressRing } from './ui'
+import { EntryForm } from './forms'
 
 /* --------------------------------------------------------------------------
    Ambiente mínimo de navegador: storage, matchMedia e DOM suficientes para
@@ -196,4 +197,28 @@ test('componentes de progresso e missão são reutilizáveis e acessíveis sem e
 test('todas as opções de tema são aceitas pelo tipo compartilhado', () => {
   const modes: ThemeMode[] = ['dark', 'light', 'system']
   assert.deepEqual(modes.map(resolveTheme).every(value => value === 'dark' || value === 'light'), true)
+})
+
+test('EntryForm uses the personal catalog and keeps historical labels visible', () => {
+  const categories = [
+    { id: 'food', name: 'Alimentação', type: 'expense' as const, archivedAt: null },
+    { id: 'pet', name: 'Pets', type: 'expense' as const, archivedAt: null },
+  ]
+  const subcategories = [
+    { id: 'bakery', categoryId: 'pet', name: 'Veterinário', archivedAt: null },
+  ]
+  const html = renderToStaticMarkup(
+    <EntryForm
+      initial={{ id: 'old', accountId: 'account', title: 'Consulta', category: 'Veterinário antigo', subcategory: 'Clínica antiga', type: 'expense', amountCents: 2500, date: '2026-01-10', note: '' }}
+      accounts={[{ id: 'account', name: 'Conta', type: 'corrente', openingCents: 0, balanceCents: 0, isReserve: false, description: '' }]}
+      categories={categories}
+      subcategories={subcategories}
+      onSubmit={async () => true}
+      error=""
+    />,
+  )
+  assert.match(html, /Pets/)
+  assert.match(html, /Veterinário/)
+  assert.match(html, /Veterinário antigo \(histórica\)/)
+  assert.match(html, /Clínica antiga \(histórica\)/)
 })

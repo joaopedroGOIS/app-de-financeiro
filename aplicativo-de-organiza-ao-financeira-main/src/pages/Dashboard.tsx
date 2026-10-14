@@ -317,7 +317,7 @@ export function EntryRow({ entry, account, onEdit, onRemove }: { entry: Entry; a
       </span>
       <div className="entry-main">
         <strong>{entry.title}</strong>
-        <span className="entry-meta">{entry.category}<span className="sep">·</span>{account}<span className="sep">·</span>{displayDate(entry.date)}</span>
+        <span className="entry-meta">{entry.category}{entry.subcategory ? <><span className="sep">·</span>{entry.subcategory}</> : null}<span className="sep">·</span>{account}<span className="sep">·</span>{displayDate(entry.date)}</span>
       </div>
       <strong className={`entry-value ${entry.type}`}>{value > 0 ? '+' : value < 0 ? '−' : ''}{currency(Math.abs(entry.amountCents))}</strong>
       <div className="entry-actions">
