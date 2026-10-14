@@ -1,12 +1,14 @@
 import type { ThemeMode } from './theme'
 
 export type Account = { id: string; name: string; type: 'corrente' | 'poupança' | 'dinheiro' | 'investimento' | 'outro'; openingCents: number; balanceCents: number; isReserve: boolean; description: string }
-export type Entry = { id: string; accountId: string; title: string; category: string; type: 'income' | 'expense' | 'adjustment'; amountCents: number; date: string; note: string }
+export type Entry = { id: string; accountId: string; title: string; category: string; subcategory?: string; type: 'income' | 'expense' | 'adjustment'; amountCents: number; date: string; note: string }
+export type UserCategory = { id: string; name: string; type: Entry['type']; archivedAt: string | null }
+export type UserSubcategory = { id: string; categoryId: string; name: string; archivedAt: string | null }
 export type Asset = { id: string; name: string; kind: 'asset' | 'liability'; amountCents: number; note: string }
 export type Goal = { id: string; title: string; kind: 'meta' | 'sonho'; targetCents: number; savedCents: number; icon: string; deadline: string | null; milestones: number[] }
 /** `nextLevelXp` é `null` enquanto a curva oficial de XP não estiver configurada no servidor. */
 export type Progress = { xp_total: number; level: number; graninha_balance: number; nextLevelXp: number | null }
-export type State = { user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: null } }
+export type State = { user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: null } }
 export type Analysis = { status: 'insufficient' | 'expired' | 'ready'; difficulty?: string; confidence: 'baixa' | 'alta'; monthsRecorded: number; remainingCents?: number; capacityCents?: number; estimatedMonths?: number; needMonthlyCents?: number; monthsLeft?: number; effortIndex?: number; formulaVersion: string }
 
 /** `token` aponta para os pares `--cat-*` definidos em `styles/tokens.css`, um por tema. */
@@ -43,7 +45,7 @@ let sessionToken: string | null = null
 let refreshToken: string | null = null
 try { sessionToken = sessionStorage.getItem(SESSION_KEY); refreshToken = sessionStorage.getItem('granae:supabase-refresh') } catch { /* Storage may be unavailable in embedded previews. */ }
 
-const env = import.meta.env as ImportMetaEnv & { VITE_SUPABASE_URL?: string; VITE_SUPABASE_PUBLISHABLE_KEY?: string }
+const env = (import.meta as ImportMeta & { env?: ImportMetaEnv & { VITE_SUPABASE_URL?: string; VITE_SUPABASE_PUBLISHABLE_KEY?: string } }).env ?? {}
 const projectUrl = env.VITE_SUPABASE_URL?.replace(/\/$/, '')
 const publishableKey = env.VITE_SUPABASE_PUBLISHABLE_KEY
 
@@ -143,12 +145,14 @@ function netStats(accounts: any[], entries: any[], assets: any[]) {
   return { balances, reserveCents, netWorthCents, streak }
 }
 async function getState(): Promise<State> {
-  const [user, profiles, accounts, entries, archived, assets, goals, contributions, milestones, progress, preferences] = await Promise.all([
+  const [user, profiles, accounts, entries, archived, categories, subcategories, assets, goals, contributions, milestones, progress, preferences] = await Promise.all([
     authRequest('user', undefined, true),
     rest('profiles','GET',query({select:'id,name'})),
     rest('accounts','GET',query({select:'*',order:'created_at.asc,id.asc'})),
     rest('entries','GET',query({select:'*',archived_at:'is.null',order:'date.desc,created_at.desc'})),
     rest('entries','GET',query({select:'*',archived_at:'not.is.null',order:'date.desc,created_at.desc'})),
+    rest('categories','GET',query({select:'*',order:'type.asc,name.asc'})),
+    rest('subcategories','GET',query({select:'*',order:'name.asc'})),
     rest('assets','GET',query({select:'*',order:'name.asc'})),
     rest('goals','GET',query({select:'*',archived_at:'is.null',order:'created_at.desc'})),
     rest('contributions','GET',query({select:'goal_id,amount_cents,date',order:'date.desc'})),
@@ -164,8 +168,10 @@ async function getState(): Promise<State> {
   return {
     user: { id: user.id, name: profile.name || user.user_metadata?.name || '', email: user.email || '' },
     accounts: accountRows.map(a => ({ id:a.id,name:a.name,type:a.type,openingCents:Number(a.opening_cents),isReserve:a.is_reserve,description:a.description,balanceCents:stats.balances.find(b=>b.id===a.id)?.balanceCents ?? 0 })),
-    entries: entryRows.map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note })),
-    archivedEntries: rows<any>(archived).map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note,archivedAt:e.archived_at })),
+    entries: entryRows.map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,subcategory:e.subcategory ?? '',type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note })),
+    categories: rows<any>(categories).map(c => ({ id:c.id,name:c.name,type:c.type,archivedAt:c.archived_at })),
+    subcategories: rows<any>(subcategories).map(c => ({ id:c.id,categoryId:c.category_id,name:c.name,archivedAt:c.archived_at })),
+    archivedEntries: rows<any>(archived).map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,subcategory:e.subcategory ?? '',type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note,archivedAt:e.archived_at })),
     assets: assetRows.map(a => ({ id:a.id,name:a.name,kind:a.kind,amountCents:Number(a.amount_cents),note:a.note })),
     goals: rows<any>(goals).map(g => ({ id:g.id,title:g.title,kind:g.kind,targetCents:Number(g.target_cents),icon:g.icon,deadline:g.deadline,savedCents:contributionsByGoal.filter(c=>c.goal_id===g.id).reduce((sum,c)=>sum+Number(c.amount_cents),0),milestones:milestoneRows.filter(m=>m.goal_id===g.id).map(m=>Number(m.milestone)) })),
     progress: { xp_total:Number(progressRow.xp_total ?? 0),level:Number(progressRow.level ?? 1),graninha_balance:Number(progressRow.graninha_balance ?? 0),nextLevelXp:null },
@@ -257,6 +263,32 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
     await rest('user_preferences','POST','',{user_id:user.id,theme:body.theme},{prefer:'resolution=merge-duplicates,return=minimal'})
     return {ok:true,theme:body.theme} as T
   }
+  const categoryId=path.match(/^\/categories\/([^/]+)$/)
+  if (path==='/categories' && method==='POST') {
+    const user=await authRequest('user',undefined,true), result=await rest<any[]>('categories','POST','',{user_id:user.id,name:String(body.name).trim(),type:body.type})
+    return {id:result[0]?.id} as T
+  }
+  if (categoryId && method==='PATCH') {
+    const user=await authRequest('user',undefined,true), archivedAt=body.archived ? new Date().toISOString() : null
+    await rest('categories','PATCH',query({id:`eq.${decodeURIComponent(categoryId[1])}`,user_id:`eq.${user.id}`}),{name:String(body.name).trim(),archived_at:archivedAt},{prefer:'return=minimal'})
+    return {ok:true} as T
+  }
+  if (categoryId && method==='DELETE') return await rest('rpc/archive_category','POST','',{p_category_id:decodeURIComponent(categoryId[1])}) as T
+  const subcategoryId=path.match(/^\/subcategories\/([^/]+)$/)
+  if (path==='/subcategories' && method==='POST') {
+    const user=await authRequest('user',undefined,true), result=await rest<any[]>('subcategories','POST','',{user_id:user.id,category_id:body.categoryId,name:String(body.name).trim()})
+    return {id:result[0]?.id} as T
+  }
+  if (subcategoryId && method==='PATCH') {
+    const user=await authRequest('user',undefined,true), archivedAt=body.archived ? new Date().toISOString() : null
+    await rest('subcategories','PATCH',query({id:`eq.${decodeURIComponent(subcategoryId[1])}`,user_id:`eq.${user.id}`}),{name:String(body.name).trim(),archived_at:archivedAt},{prefer:'return=minimal'})
+    return {ok:true} as T
+  }
+  if (subcategoryId && method==='DELETE') {
+    const user=await authRequest('user',undefined,true)
+    await rest('subcategories','PATCH',query({id:`eq.${decodeURIComponent(subcategoryId[1])}`,user_id:`eq.${user.id}`,archived_at:'is.null'}),{archived_at:new Date().toISOString()},{prefer:'return=minimal'})
+    return {ok:true} as T
+  }
   const goalDifficulty=path.match(/^\/goals\/([^/]+)\/difficulty$/)
   if (goalDifficulty && method==='GET') return await difficulty(decodeURIComponent(goalDifficulty[1])) as T
   const goalHistory=path.match(/^\/goals\/([^/]+)\/difficulty\/history$/)
@@ -266,13 +298,13 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   }
   const entryId=path.match(/^\/entries\/([^/]+)$/)
   if (path==='/entries' && method==='POST') {
-    const result=await rest<any>('rpc/create_entry','POST','',{p_account_id:body.accountId,p_title:body.title,p_category:body.category,p_type:body.type,p_amount_cents:body.amountCents,p_date:body.date,p_note:body.note,p_idempotency_key:idempotencyKey(options)})
+    const result=await rest<any>('rpc/create_entry_v2','POST','',{p_account_id:body.accountId,p_title:body.title,p_category:body.category,p_subcategory:body.subcategory ?? '',p_type:body.type,p_amount_cents:body.amountCents,p_date:body.date,p_note:body.note,p_idempotency_key:idempotencyKey(options)})
     return result as T
   }
   if (path==='/entries' && method==='GET') return [] as T
   if (entryId && method==='PATCH') {
     const user=await authRequest('user',undefined,true)
-    await rest('entries','PATCH',query({id:`eq.${decodeURIComponent(entryId[1])}`,user_id:`eq.${user.id}`,archived_at:'is.null'}),{account_id:body.accountId,title:body.title,category:body.category,type:body.type,amount_cents:body.amountCents,date:body.date,note:body.note},{prefer:'return=minimal'})
+    await rest('entries','PATCH',query({id:`eq.${decodeURIComponent(entryId[1])}`,user_id:`eq.${user.id}`,archived_at:'is.null'}),{account_id:body.accountId,title:body.title,category:body.category,subcategory:body.subcategory ?? '',type:body.type,amount_cents:body.amountCents,date:body.date,note:body.note},{prefer:'return=minimal'})
     return {ok:true} as T
   }
   if (entryId && method==='DELETE') return await rest('rpc/archive_entry','POST','',{p_entry_id:decodeURIComponent(entryId[1])}) as T

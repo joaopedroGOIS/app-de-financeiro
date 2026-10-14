@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Check, CircleAlert } from 'lucide-react'
-import { categories, currency, dateToday, goalIcons, incomeCategories, inputMoney, toCents } from './data'
-import type { Account, Asset, Entry, Goal } from './data'
+import { currency, dateToday, goalIcons, inputMoney, toCents } from './data'
+import type { Account, Asset, Entry, Goal, UserCategory, UserSubcategory } from './data'
 import { Button, Segmented } from './ui'
 
 /* ==========================================================================
@@ -16,21 +16,35 @@ function FormError({ error }: { error: string }) {
 
 type FormProps<T> = { initial: T | null; onSubmit: (body: unknown) => Promise<boolean>; error: string }
 
-export function EntryForm({ initial, accounts, onSubmit, error }: FormProps<Entry> & { accounts: Account[] }) {
-  const [type, setType] = useState<Entry['type']>(initial?.type ?? 'expense')
+export function EntryForm({ initial, accounts, categories: userCategories, subcategories: userSubcategories, onSubmit, error }: FormProps<Entry> & { accounts: Account[]; categories: UserCategory[]; subcategories: UserSubcategory[] }) {
+  const initialType = initial?.type ?? 'expense'
+  const activeForType = userCategories.filter(item => item.type === initialType && !item.archivedAt)
+  const [type, setType] = useState<Entry['type']>(initialType)
   const [title, setTitle] = useState(initial?.title ?? '')
   const [value, setValue] = useState(initial ? inputMoney(Math.abs(initial.amountCents)) : '')
   const [adjustmentSign, setAdjustmentSign] = useState(initial?.amountCents && initial.amountCents < 0 ? -1 : 1)
-  const [category, setCategory] = useState(initial?.category ?? 'Alimentação')
+  const [category, setCategory] = useState(initial?.category ?? activeForType[0]?.name ?? 'Alimentação')
+  const [subcategory, setSubcategory] = useState(initial?.subcategory ?? '')
   const [accountId, setAccountId] = useState(initial?.accountId ?? accounts[0]?.id ?? '')
   const [date, setDate] = useState(initial?.date ?? dateToday())
   const [note, setNote] = useState(initial?.note ?? '')
   const [pending, setPending] = useState(false)
-  const changeType = (next: Entry['type']) => { setType(next); setCategory(next === 'income' ? 'Salário' : next === 'adjustment' ? 'Ajuste de saldo' : 'Alimentação') }
+  const categoryOptions = userCategories.filter(item => item.type === type && !item.archivedAt)
+  const currentCategory = categoryOptions.find(item => item.name === category)
+  const subcategoryOptions = currentCategory ? userSubcategories.filter(item => item.categoryId === currentCategory.id && !item.archivedAt) : []
+  const legacyCategory = initial && type === initial.type && initial.category && !categoryOptions.some(item => item.name === initial.category) ? initial.category : ''
+  const legacySubcategory = initial && type === initial.type && category === initial.category && initial.subcategory && !subcategoryOptions.some(item => item.name === initial.subcategory) ? initial.subcategory : ''
+  const changeCategory = (name: string) => { setCategory(name); setSubcategory('') }
+  const changeType = (next: Entry['type']) => {
+    setType(next)
+    const first = userCategories.find(item => item.type === next && !item.archivedAt)
+    setCategory(first?.name ?? (next === 'income' ? 'Salário' : next === 'adjustment' ? 'Ajuste de saldo' : 'Alimentação'))
+    setSubcategory('')
+  }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setPending(true)
-    await onSubmit({ type, title, amountCents: toCents(value) * (type === 'adjustment' ? adjustmentSign : 1), category, accountId, date, note })
+    await onSubmit({ type, title, amountCents: toCents(value) * (type === 'adjustment' ? adjustmentSign : 1), category, subcategory, accountId, date, note })
     setPending(false)
   }
   return (
@@ -62,11 +76,21 @@ export function EntryForm({ initial, accounts, onSubmit, error }: FormProps<Entr
           </select>
         </label>
         <label>Categoria
-          <select value={category} onChange={event => setCategory(event.target.value)}>
-            {(type === 'expense' ? categories.map(c => c.name) : type === 'income' ? incomeCategories : ['Ajuste de saldo']).map(name => <option key={name} value={name}>{name}</option>)}
+          <select required value={category} onChange={event => changeCategory(event.target.value)}>
+            {legacyCategory && <option value={legacyCategory}>{legacyCategory} (histórica)</option>}
+            {categoryOptions.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
           </select>
         </label>
       </div>
+      {subcategoryOptions.length > 0 || legacySubcategory ? (
+        <label>Subcategoria <span className="optional">(opcional)</span>
+          <select value={subcategory} onChange={event => setSubcategory(event.target.value)}>
+            <option value="">Sem subcategoria</option>
+            {legacySubcategory && <option value={legacySubcategory}>{legacySubcategory} (histórica)</option>}
+            {subcategoryOptions.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}
+          </select>
+        </label>
+      ) : null}
       <label>Observação <span className="optional">(opcional)</span>
         <input maxLength={300} placeholder="Algum detalhe importante?" value={note} onChange={event => setNote(event.target.value)} />
       </label>

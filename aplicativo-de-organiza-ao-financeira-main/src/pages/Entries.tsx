@@ -21,7 +21,7 @@ export function EntriesPage({ state, month, query, entryFilter, setQuery, setEnt
   const needle = query.toLocaleLowerCase('pt-BR')
   const filtered = monthEntries.filter(entry =>
     (entryFilter === 'all' || entry.type === entryFilter) &&
-    `${entry.title} ${entry.category} ${state.accounts.find(account => account.id === entry.accountId)?.name ?? ''}`.toLocaleLowerCase('pt-BR').includes(needle))
+    `${entry.title} ${entry.category} ${entry.subcategory ?? ''} ${state.accounts.find(account => account.id === entry.accountId)?.name ?? ''}`.toLocaleLowerCase('pt-BR').includes(needle))
   const sortedEntries = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
   const dayGroups = sortedEntries.reduce((groups, entry) => {
     const entries = groups.get(entry.date) ?? []

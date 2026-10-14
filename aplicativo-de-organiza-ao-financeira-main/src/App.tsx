@@ -7,6 +7,7 @@ import type { Account, Analysis, Asset, Entry, Goal, State } from './data'
 import { useTheme } from './theme'
 import type { ThemeMode } from './theme'
 import { AccountForm, AssetForm, ContributionForm, EntryForm, GoalForm } from './forms'
+import { CategoryManager } from './CategoryManager'
 import { AccountsPage } from './pages/Accounts'
 import { DashboardPage } from './pages/Dashboard'
 import { EntriesPage } from './pages/Entries'
@@ -246,7 +247,7 @@ export default function App() {
 
   const downloadCSV = () => {
     if (!state) return
-    const rows = [['Data', 'Tipo', 'Conta', 'Categoria', 'Descrição', 'Valor (R$)', 'Observação', 'Situação'],
+    const rows = [['Data', 'Tipo', 'Conta', 'Categoria', 'Subcategoria', 'Descrição', 'Valor (R$)', 'Observação', 'Situação'],
     ...[...state.entries.map(entry => ({ ...entry, archived: false })), ...state.archivedEntries.map(entry => ({ ...entry, archived: true }))]
       .sort((a, b) => b.date.localeCompare(a.date))
       .map(entry => [
@@ -254,6 +255,7 @@ export default function App() {
         entry.type === 'income' ? 'Receita' : entry.type === 'expense' ? 'Gasto' : 'Ajuste',
         state.accounts.find(account => account.id === entry.accountId)?.name ?? '',
         entry.category,
+        entry.subcategory ?? '',
         entry.title,
         (signed(entry) / 100).toFixed(2).replace('.', ','),
         entry.note,
@@ -289,7 +291,7 @@ export default function App() {
   const selected = nav.find(item => item.id === page)
     const searchTerm = query.trim().toLocaleLowerCase('pt-BR')
   const globalSearchResults = searchTerm ? [
-    ...state.entries.filter(item => `${item.title} ${item.category} ${item.note}`.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 4).map(item => ({ id: `entry-${item.id}`, title: item.title, detail: `${item.category} · ${currency(Math.abs(signed(item)))}`, destination: 'entries' as PageId, query: item.title })),
+    ...state.entries.filter(item => `${item.title} ${item.category} ${item.subcategory ?? ''} ${item.note}`.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 4).map(item => ({ id: `entry-${item.id}`, title: item.title, detail: `${item.category} · ${currency(Math.abs(signed(item)))}`, destination: 'entries' as PageId, query: item.title })),
     ...state.accounts.filter(item => `${item.name} ${item.type} ${item.description}`.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 3).map(item => ({ id: `account-${item.id}`, title: item.name, detail: `Conta · ${currency(item.balanceCents)}`, destination: 'accounts' as PageId, query: '' })),
     ...state.goals.filter(item => item.title.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 3).map(item => ({ id: `goal-${item.id}`, title: item.title, detail: item.kind === 'sonho' ? 'Sonho' : 'Meta', destination: 'goals' as PageId, query: '' })),
   ].slice(0, 7) : []
@@ -471,6 +473,8 @@ export default function App() {
           <EntryForm
             initial={editEntry}
             accounts={state.accounts}
+            categories={state.categories ?? []}
+            subcategories={state.subcategories ?? []}
             error={formError}
             onSubmit={async body => execute(editEntry ? `/entries/${editEntry.id}` : '/entries', json(editEntry ? 'PATCH' : 'POST', body, !editEntry), editEntry ? 'Movimentação atualizada.' : 'Movimentação registrada.')}
           />
@@ -513,6 +517,14 @@ export default function App() {
             {formError && <InlineError>{formError}</InlineError>}
             <Button type="submit" wide><Check size={17} />Salvar nome</Button>
           </form>
+
+          <div className="divider" />
+
+          <CategoryManager
+            categories={state.categories ?? []}
+            subcategories={state.subcategories ?? []}
+            onUpdated={async () => { await refresh(); showToast('Categorias atualizadas.') }}
+          />
 
           <div className="divider" />
 
