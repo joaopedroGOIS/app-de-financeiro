@@ -6,6 +6,15 @@ export type CardInstallment = { id: string; purchaseId: string; cardId: string; 
 export type CardPayment = { id: string; cardId: string; accountId: string; billMonth: string; amountCents: number; date: string; note: string }
 export type CardState = { cards: CreditCard[]; purchases: CardPurchase[]; installments: CardInstallment[]; payments: CardPayment[] }
 export const emptyCardState = (): CardState => ({ cards: [], purchases: [], installments: [], payments: [] })
+// Percentual total com até duas casas; arredonda uma única vez para centavos.
+export function percentageInterestCents(principalCents: number, percentage: string): number | null {
+  const normalized = percentage.trim().replace(',', '.')
+  if (!Number.isSafeInteger(principalCents) || principalCents <= 0 || !/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null
+  const [whole, decimal = ''] = normalized.split('.')
+  const basisPoints = BigInt(whole) * 100n + BigInt(decimal.padEnd(2, '0'))
+  const cents = (BigInt(principalCents) * basisPoints + 5000n) / 10000n
+  return cents <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(cents) : null
+}
 export type CardBill = { cardId: string; month: string; dueDate: string; totalCents: number; paidCents: number; remainingCents: number; installments: CardInstallment[] }
 
 export function cardBills(state: CardState): CardBill[] {

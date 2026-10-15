@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { cardBills, cardOutstanding, cardExpenseEntries, emptyCardState, firstCardBill, installmentPreview } from './creditCards'
+import { cardBills, cardOutstanding, cardExpenseEntries, emptyCardState, firstCardBill, installmentPreview, percentageInterestCents } from './creditCards'
 import type { CardState } from './creditCards'
 import { netStats } from './data'
 import type { State } from './data'
@@ -12,6 +12,23 @@ const card = { id:'card',name:'Meu cartão',lastFour:'1234',limitCents:100000,cl
 const purchase = { id:'purchase',cardId:'card',title:'Notebook',category:'Compras',subcategory:'',amountCents:10000,date:'2026-10-10',installments:3,note:'' }
 const state: CardState = { cards:[card],purchases:[purchase],installments:installmentPreview(10000,3,'2026-10',28).map(i=>({id:`i-${i.number}`,purchaseId:'purchase',cardId:'card',number:i.number,amountCents:i.amountCents,dueDate:i.dueDate,billMonth:i.dueDate.slice(0,7)})),payments:[] }
 const noop = ()=>{}
+test('juros percentuais usam o valor original e preservam centavos no parcelamento',()=>{
+  assert.equal(percentageInterestCents(100000,'20'),20000)
+  assert.equal(percentageInterestCents(100000,'2.5'),2500)
+  assert.equal(percentageInterestCents(100000,'2,50'),2500)
+  assert.equal(percentageInterestCents(1,'50'),1)
+  assert.equal(percentageInterestCents(1,'49.99'),0)
+  assert.equal(percentageInterestCents(100000,'150'),150000)
+  const total=100001+percentageInterestCents(100001,'2.55')!
+  assert.equal(total,102551)
+  assert.equal(installmentPreview(total,6,'2026-10',28).reduce((sum,p)=>sum+p.amountCents,0),total)
+})
+test('juros percentuais rejeitam entradas inválidas ou valores sem precisão segura',()=>{
+  for (const value of ['', '-1', 'NaN', 'Infinity', '2.555', '1e2']) assert.equal(percentageInterestCents(100000,value),null)
+  assert.equal(percentageInterestCents(0,'20'),null)
+  assert.equal(percentageInterestCents(NaN,'20'),null)
+  assert.equal(percentageInterestCents(Number.MAX_SAFE_INTEGER,'101'),null)
+})
 const uiState: State = { user:{id:'u',name:'Ana',email:''},accounts:[{id:'a',name:'Conta',type:'corrente',openingCents:100000,balanceCents:100000,isReserve:false,description:''}],entries:[],archivedEntries:[],assets:[],goals:[],progress:{xp_total:0,level:1,graninha_balance:0,nextLevelXp:null},preferences:{theme:'dark'},stats:{reserveCents:0,netWorthCents:90000,streak:0,financialClass:null},creditCards:state,creditCardsEnabled:true }
 
 test('fatura respeita fechamento, virada do ano e vencimento no mês seguinte',()=>{

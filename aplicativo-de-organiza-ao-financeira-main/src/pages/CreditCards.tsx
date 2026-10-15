@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Archive, Check, CreditCard as CreditCardIcon, Plus, Pencil, ShoppingBag, Wallet } from 'lucide-react'
 import { api, currency, dateToday, displayDate, inputMoney, json, monthName, monthShift, percent, toCents } from '../data'
 import type { Account, State, UserCategory, UserSubcategory } from '../data'
-import { cardBills, cardOutstanding, emptyCardState, firstCardBill, installmentPreview } from '../creditCards'
+import { cardBills, cardOutstanding, emptyCardState, firstCardBill, installmentPreview, percentageInterestCents } from '../creditCards'
 import type { CardBill, CreditCard } from '../creditCards'
 import { Badge, Button, Card, CardHeader, EmptyState, InlineError, Modal, MonthPicker, ProgressBar } from '../ui'
 
@@ -38,11 +38,14 @@ export function CardPurchaseForm({ card, availableCents, categories, subcategori
   const active = categories.filter(c=>c.type==='expense' && !c.archivedAt)
   const [title,setTitle] = useState(''), [value,setValue] = useState(''), [date,setDate] = useState(dateToday())
   const [hasInterest,setHasInterest] = useState(false), [interest,setInterest] = useState('')
+  const [interestMode,setInterestMode] = useState('amount'), [interestRate,setInterestRate] = useState('')
   const [count,setCount] = useState(1), [firstMonth,setFirstMonth] = useState('')
   const [category,setCategory] = useState(active[0]?.name ?? ''), [subcategory,setSubcategory] = useState(''), [note,setNote] = useState('')
   const [key] = useState(()=>crypto.randomUUID()), [pending,setPending] = useState(false)
   const first = firstMonth || firstCardBill(date,card.closingDay,card.dueDay)
-  const principal = toCents(value), interestCents = hasInterest ? toCents(interest) : 0
+  const principal = toCents(value)
+  const calculatedInterest = interestMode==='percentage' ? percentageInterestCents(principal,interestRate) : toCents(interest)
+  const interestCents = hasInterest ? (calculatedInterest ?? 0) : 0
   const total = principal + interestCents, preview = installmentPreview(total,count,first,card.dueDay)
   const parent = active.find(c=>c.name===category), subs = subcategories.filter(s=>s.categoryId===parent?.id && !s.archivedAt)
   const submit = async (event: FormEvent) => { event.preventDefault(); setPending(true); try { await onSubmit({cardId:card.id,title,principalCents:principal,interestCents,date,installments:count,firstMonth:first,category,subcategory,note},key) } finally { setPending(false) } }
@@ -54,7 +57,12 @@ export function CardPurchaseForm({ card, availableCents, categories, subcategori
       <label>Data da compra<input type="date" required max={dateToday()} value={date} onChange={e=>{setDate(e.target.value);setFirstMonth('')}} /></label>
     </div>
     <label className="check-field"><input type="checkbox" checked={hasInterest} onChange={e=>setHasInterest(e.target.checked)}/><span>Esta compra tem juros</span></label>
-    {hasInterest && <label>Juros totais da compra (R$)<input type="number" inputMode="decimal" min="0.01" max={inputMoney(availableCents)} step="0.01" required placeholder="Ex.: 200,00" value={interest} onChange={e=>setInterest(e.target.value)}/><small className="form-description">Informe o valor total dos juros em reais, não a taxa mensal. Ele será somado uma única vez ao valor original e dividido nas parcelas.</small></label>}
+    {hasInterest && <>
+      <label>Informar juros em<select value={interestMode} onChange={e=>setInterestMode(e.target.value)}><option value="amount">Valor em reais (R$)</option><option value="percentage">Porcentagem total (%)</option></select></label>
+      {interestMode==='percentage'
+        ? <label>Juros totais da compra (%)<input type="number" inputMode="decimal" min="0.01" step="0.01" required placeholder="Ex.: 20" value={interestRate} onChange={e=>setInterestRate(e.target.value)}/><small className="form-description">Percentual total sobre o valor original, aplicado uma única vez. Ex.: 20% de R$ 1.000,00 são R$ 200,00 de juros. Não é uma taxa mensal.</small></label>
+        : <label>Juros totais da compra (R$)<input type="number" inputMode="decimal" min="0.01" max={inputMoney(availableCents)} step="0.01" required placeholder="Ex.: 200,00" value={interest} onChange={e=>setInterest(e.target.value)}/><small className="form-description">Informe o valor total dos juros em reais. Ele será somado uma única vez ao valor original e dividido nas parcelas.</small></label>}
+    </>}
     {principal>0 && <div className="info-note"><ShoppingBag size={18}/><p>Valor original: <strong>{currency(principal)}</strong><br/>Juros totais: <strong>{currency(interestCents)}</strong><br/>Total a pagar: <strong>{currency(total)}</strong></p></div>}
     {total>availableCents && <InlineError>O total com juros ultrapassa o limite disponível do cartão.</InlineError>}
     <div className="form-row">
