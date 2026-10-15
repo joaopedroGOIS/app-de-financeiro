@@ -1,0 +1,39 @@
+.financial-report { min-width: 0; }
+.report-period { display: grid; gap: 5px; font-size: 12px; color: var(--text-secondary); }
+.report-period select { color: var(--text); background: var(--surface-raised); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
+.report-totals { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 20px 0; }
+.report-totals > div { display: grid; gap: 8px; background: var(--surface-sunken); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 14px; }
+.report-totals span,.report-note { font-size: 12px; color: var(--text-secondary); }
+.report-totals strong { font-size: clamp(14px,1.4vw,22px); overflow-wrap: anywhere; }
+.report-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin-bottom: 20px; }
+.report-legend span { display: flex; align-items: center; gap: 6px; }
+.report-legend i { width: 9px; height: 9px; border-radius: 3px; }
+.report-legend small { margin-left: auto; }
+.report-income { background: var(--success); }
+.report-expense { background: var(--primary); }
+.report-chart-scroll,.report-table-scroll { overflow-x: auto; }
+.report-chart { display: flex; gap: 10px; height: 230px; }
+.report-scale { width: 48px; height: 180px; display: flex; flex-direction: column; justify-content: space-between; color: var(--text-secondary); font-size: 11px; }
+.report-columns { display: flex; flex: 1; gap: 8px; background: repeating-linear-gradient(to top,transparent 0,transparent 89px,var(--border-subtle) 89px,var(--border-subtle) 90px); background-size: 100% 180px; background-repeat: no-repeat; }
+.report-month { flex: 1; min-width: 0; padding: 0 4px; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; font: inherit; font-size: 12px; border-radius: 7px; }
+.report-month:hover,.report-month[aria-pressed=true] { background: var(--primary-soft); color: var(--text); }
+.report-month:focus-visible,.category-report-button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.report-bars { display: flex; align-items: flex-end; justify-content: center; height: 180px; gap: 4px; margin-bottom: 8px; }
+.report-bars i { display: block; width: 30%; max-width: 26px; border-radius: 5px 5px 0 0; }
+.report-month small { display: block; font-size: 10px; }
+.report-details { margin-top: 16px; border-top: 1px solid var(--border-subtle); padding-top: 14px; }
+.report-details summary { cursor: pointer; color: var(--primary-text); font-size: 13px; }
+.report-details table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+.report-details th,.report-details td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border-subtle); }
+.report-details th { color: var(--text-secondary); }
+.report-details td small { display: block; color: var(--text-secondary); }
+.report-details td:last-child { white-space: nowrap; }
+.report-note { line-height: 1.6; margin-top: 16px; }
+.category-report-button { border: 0; background: transparent; color: inherit; width: 100%; text-align: left; cursor: pointer; font: inherit; padding: 0; }
+.category-report-button:hover { background: var(--surface-hover); border-radius: 10px; }
+@media(max-width: 600px) { .report-totals { gap: 6px; } .report-totals > div { padding: 10px 8px; } .report-totals span { font-size: 10px; } .report-legend small { width: 100%; margin-left: 0; } }
+.dashboard-grid > .card.category-report-details { grid-column: 1 / -1; order: 3; }
+@media(min-width: 1081px) {
+  .dashboard-grid > .card.financial-report { grid-column: span 8; }
+  .dashboard-grid > .card.category-report { grid-column: span 4; }
+}
