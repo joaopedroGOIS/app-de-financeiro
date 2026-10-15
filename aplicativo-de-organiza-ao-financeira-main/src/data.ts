@@ -1,14 +1,16 @@
+import { cardCashPayments, cardExpenseEntries, cardOutstanding, emptyCardState } from './creditCards'
+import type { CardState } from './creditCards'
 import type { ThemeMode } from './theme'
 
 export type Account = { id: string; name: string; type: 'corrente' | 'poupança' | 'dinheiro' | 'investimento' | 'outro'; openingCents: number; balanceCents: number; isReserve: boolean; description: string }
-export type Entry = { id: string; accountId: string; title: string; category: string; subcategory?: string; type: 'income' | 'expense' | 'adjustment'; amountCents: number; date: string; note: string }
+export type Entry = { id: string; accountId: string; cardId?: string; cardPaymentId?: string; settled?: boolean; title: string; category: string; subcategory?: string; type: 'income' | 'expense' | 'adjustment'; amountCents: number; date: string; note: string }
 export type UserCategory = { id: string; name: string; type: Entry['type']; archivedAt: string | null }
 export type UserSubcategory = { id: string; categoryId: string; name: string; archivedAt: string | null }
 export type Asset = { id: string; name: string; kind: 'asset' | 'liability'; amountCents: number; note: string }
 export type Goal = { id: string; title: string; kind: 'meta' | 'sonho'; targetCents: number; savedCents: number; icon: string; deadline: string | null; milestones: number[] }
 /** `nextLevelXp` é `null` enquanto a curva oficial de XP não estiver configurada no servidor. */
 export type Progress = { xp_total: number; level: number; graninha_balance: number; nextLevelXp: number | null }
-export type State = { user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: null } }
+export type State = { creditCards?: CardState; creditCardsEnabled?: boolean; user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: null } }
 export type Analysis = { status: 'insufficient' | 'expired' | 'ready'; difficulty?: string; confidence: 'baixa' | 'alta'; monthsRecorded: number; remainingCents?: number; capacityCents?: number; estimatedMonths?: number; needMonthlyCents?: number; monthsLeft?: number; effortIndex?: number; formulaVersion: string }
 
 /** `token` aponta para os pares `--cat-*` definidos em `styles/tokens.css`, um por tema. */
@@ -129,15 +131,15 @@ async function rest<T = any>(table: string, method = 'GET', query = '', body?: u
 const query = (values: Record<string, string>) => new URLSearchParams(values).toString()
 const rows = <T>(value: unknown) => value as T[]
 const one = <T>(value: unknown) => (value as T[])[0]
-function netStats(accounts: any[], entries: any[], assets: any[]) {
+export function netStats(accounts: any[], entries: any[], assets: any[], cards: CardState = emptyCardState()) {
   const balances = accounts.map(a => ({
     ...a,
-    balanceCents: Number(a.opening_cents) + entries.filter(e => e.account_id === a.id)
+    balanceCents: Number(a.opening_cents) - cardCashPayments(cards, a.id) + entries.filter(e => e.account_id === a.id)
       .reduce((sum, e) => sum + (e.type === 'expense' ? -Number(e.amount_cents) : Number(e.amount_cents)), 0),
   }))
   const reserveCents = balances.filter(a => a.is_reserve).reduce((sum, a) => sum + Math.max(0, a.balanceCents), 0)
   const netWorthCents = balances.reduce((sum, a) => sum + a.balanceCents, 0) +
-    assets.reduce((sum, a) => sum + (a.kind === 'asset' ? Number(a.amount_cents) : -Number(a.amount_cents)), 0)
+    assets.reduce((sum, a) => sum + (a.kind === 'asset' ? Number(a.amount_cents) : -Number(a.amount_cents)), 0) - cardOutstanding(cards)
   const dates = new Set(entries.map(e => String(e.date)))
   const cursor = new Date(`${currentDate()}T12:00:00Z`)
   if (!dates.has(cursor.toISOString().slice(0,10))) cursor.setUTCDate(cursor.getUTCDate()-1)
@@ -145,8 +147,23 @@ function netStats(accounts: any[], entries: any[], assets: any[]) {
   while (dates.has(cursor.toISOString().slice(0,10))) { streak++; cursor.setUTCDate(cursor.getUTCDate()-1) }
   return { balances, reserveCents, netWorthCents, streak }
 }
+async function loadCreditCards(): Promise<{ state: CardState; enabled: boolean }> {
+  try {
+    const data = await rest<any>('rpc/credit_card_state', 'POST', '', {})
+    return { enabled: true, state: {
+      cards: data.cards.map((c: any) => ({ id:c.id,name:c.name,lastFour:c.last_four,limitCents:Number(c.limit_cents),closingDay:c.closing_day,dueDay:c.due_day,archivedAt:c.archived_at })),
+      purchases: data.purchases.map((p: any) => ({ id:p.id,cardId:p.card_id,title:p.title,category:p.category,subcategory:p.subcategory,amountCents:Number(p.amount_cents),date:p.purchase_date,installments:p.installment_count,note:p.note })),
+      installments: data.installments.map((i: any) => ({ id:i.id,purchaseId:i.purchase_id,cardId:i.card_id,number:i.installment_number,amountCents:Number(i.amount_cents),dueDate:i.due_date,billMonth:i.bill_month.slice(0,7) })),
+      payments: data.payments.map((p: any) => ({ id:p.id,cardId:p.card_id,accountId:p.account_id,billMonth:p.bill_month.slice(0,7),amountCents:Number(p.amount_cents),date:p.payment_date,note:p.note })),
+    } }
+  } catch (error) {
+    // Permite publicar a interface antes da migration sem interromper o aplicativo existente.
+    if (error instanceof ApiError && error.code === 'PGRST202') return { state: emptyCardState(), enabled: false }
+    throw error
+  }
+}
 async function getState(): Promise<State> {
-  const [user, profiles, accounts, entries, archived, categories, subcategories, assets, goals, contributions, milestones, progress, preferences] = await Promise.all([
+  const [user, profiles, accounts, entries, archived, categories, subcategories, assets, goals, contributions, milestones, progress, preferences, creditCards] = await Promise.all([
     authRequest('user', undefined, true),
     rest('profiles','GET',query({select:'id,name'})),
     rest('accounts','GET',query({select:'*',order:'created_at.asc,id.asc'})),
@@ -160,16 +177,22 @@ async function getState(): Promise<State> {
     rest('milestone_claims','GET',query({select:'goal_id,milestone'})),
     rest('player_progress','GET',query({select:'xp_total,level,graninha_balance'})),
     rest('user_preferences','GET',query({select:'theme'})),
+    loadCreditCards(),
   ])
   const profile = one<any>(profiles) ?? {}
   const accountRows = rows<any>(accounts), entryRows = rows<any>(entries), assetRows = rows<any>(assets)
-  const stats = netStats(accountRows, entryRows, assetRows)
+  const stats = netStats(accountRows, entryRows, assetRows, creditCards.state)
   const contributionsByGoal = rows<any>(contributions), milestoneRows = rows<any>(milestones)
   const progressRow = one<any>(progress) ?? {}
   return {
+    creditCards: creditCards.state, creditCardsEnabled: creditCards.enabled,
     user: { id: user.id, name: profile.name || user.user_metadata?.name || '', email: user.email || '' },
     accounts: accountRows.map(a => ({ id:a.id,name:a.name,type:a.type,openingCents:Number(a.opening_cents),isReserve:a.is_reserve,description:a.description,balanceCents:stats.balances.find(b=>b.id===a.id)?.balanceCents ?? 0 })),
-    entries: entryRows.map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,subcategory:e.subcategory ?? '',type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note })),
+    entries: [
+      ...entryRows.map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,subcategory:e.subcategory ?? '',type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note })),
+      ...cardExpenseEntries(creditCards.state),
+      ...creditCards.state.payments.map(p => ({ id:`card-payment:${p.id}`,accountId:p.accountId,cardPaymentId:p.id,title:`Pagamento de fatura · ${creditCards.state.cards.find(c=>c.id===p.cardId)?.name ?? 'Cartão'}`,category:'Pagamento de fatura',type:'adjustment' as const,amountCents:-p.amountCents,date:p.date,note:p.note })),
+    ].sort((a,b)=>b.date.localeCompare(a.date) || a.id.localeCompare(b.id)),
     categories: rows<any>(categories).map(c => ({ id:c.id,name:c.name,type:c.type,archivedAt:c.archived_at })),
     subcategories: rows<any>(subcategories).map(c => ({ id:c.id,categoryId:c.category_id,name:c.name,archivedAt:c.archived_at })),
     archivedEntries: rows<any>(archived).map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,subcategory:e.subcategory ?? '',type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note,archivedAt:e.archived_at })),
@@ -186,11 +209,12 @@ function parseBody(options: RequestInit) {
 }
 const idempotencyKey = (options: RequestInit) => new Headers(options.headers).get('Idempotency-Key') || crypto.randomUUID()
 async function difficulty(goalId: string): Promise<Analysis> {
-  const [user, goalRows, contributionRows, entryRows] = await Promise.all([
+  const [user, goalRows, contributionRows, entryRows, creditCards] = await Promise.all([
     authRequest('user',undefined,true),
     rest('goals','GET',query({select:'*',id:`eq.${goalId}`,archived_at:'is.null',limit:'1'})),
     rest('contributions','GET',query({select:'amount_cents',goal_id:`eq.${goalId}`})),
     rest('entries','GET',query({select:'type,amount_cents,date',archived_at:'is.null',type:'in.(income,expense)'})),
+    loadCreditCards(),
   ])
   const goal = one<any>(goalRows)
   if (!goal) throw new ApiError('Objetivo não encontrado.',404)
@@ -199,7 +223,7 @@ async function difficulty(goalId: string): Promise<Analysis> {
   const today = currentDate(), month = today.slice(0,7)
   const [year, m] = month.split('-').map(Number)
   const keys = Array.from({length:6},(_,i)=>new Date(Date.UTC(year,m-2-i,1)).toISOString().slice(0,7))
-  const financialEntries = rows<any>(entryRows)
+  const financialEntries = [...rows<any>(entryRows), ...cardExpenseEntries(creditCards.state).map(e=>({type:e.type,amount_cents:e.amountCents,date:e.date}))]
   const monthly = keys.map(key => {
     const period = financialEntries.filter(e=>String(e.date).slice(0,7)===key && e.type!=='adjustment')
     return { count:period.length,balance:period.reduce((s,e)=>s+(e.type==='income'?Number(e.amount_cents):-Number(e.amount_cents)),0) }
@@ -264,6 +288,19 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
     await rest('user_preferences','POST','',{user_id:user.id,theme:body.theme},{prefer:'resolution=merge-duplicates,return=minimal'})
     return {ok:true,theme:body.theme} as T
   }
+  const cardId = path.match(/^\/credit-cards\/([^/]+)$/)
+  if ((path === '/credit-cards' && method === 'POST') || (cardId && method === 'PATCH')) {
+    return await rest('rpc/save_credit_card','POST','',{p_id:cardId ? decodeURIComponent(cardId[1]) : null,p_name:body.name,p_last_four:body.lastFour,p_limit_cents:body.limitCents,p_closing_day:body.closingDay,p_due_day:body.dueDay,p_key:idempotencyKey(options)}) as T
+  }
+  if (cardId && method === 'DELETE') return await rest('rpc/archive_credit_card','POST','',{p_id:decodeURIComponent(cardId[1])}) as T
+  if (path === '/card-purchases' && method === 'POST') {
+    return await rest('rpc/create_card_purchase','POST','',{p_card_id:body.cardId,p_title:body.title,p_category:body.category,p_subcategory:body.subcategory,p_amount_cents:body.amountCents,p_date:body.date,p_installments:body.installments,p_first_month:body.firstMonth ? `${body.firstMonth}-01` : null,p_note:body.note,p_key:idempotencyKey(options)}) as T
+  }
+  const cardPurchase = path.match(/^\/card-purchases\/([^/]+)$/)
+  if (cardPurchase && method === 'DELETE') return await rest('rpc/archive_card_purchase','POST','',{p_id:decodeURIComponent(cardPurchase[1])}) as T
+  const cardPayment = path.match(/^\/card-payments\/([^/]+)$/)
+  if (cardPayment && method === 'DELETE') return await rest('rpc/reverse_card_payment','POST','',{p_id:decodeURIComponent(cardPayment[1])}) as T
+  if (path === '/card-payments' && method === 'POST') return await rest('rpc/pay_card_bill','POST','',{p_card_id:body.cardId,p_month:`${body.month}-01`,p_account_id:body.accountId,p_amount_cents:body.amountCents,p_date:body.date,p_note:body.note,p_key:idempotencyKey(options)}) as T
   const categoryId=path.match(/^\/categories\/([^/]+)$/)
   if (path==='/categories' && method==='POST') {
     const user=await authRequest('user',undefined,true), result=await rest<any[]>('categories','POST','',{user_id:user.id,name:String(body.name).trim(),type:body.type})

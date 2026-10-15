@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowDownLeft, ArrowLeft, ArrowRight, Award, BarChart3, Check, ChevronRight, Download, Gem, LogOut, LockKeyhole, Plus, Search, ShieldCheck, Sparkles, Target, Wallet } from 'lucide-react'
+import { ArrowDownLeft, ArrowLeft, ArrowRight, Award, BarChart3, Check, ChevronRight, CreditCard, Download, Gem, LogOut, LockKeyhole, Plus, Search, ShieldCheck, Sparkles, Target, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { api, ApiError, currency, dateToday, json, monthName, monthShift, setSessionToken, signed } from './data'
 import type { Account, Analysis, Asset, Entry, Goal, State } from './data'
@@ -9,6 +9,7 @@ import type { ThemeMode } from './theme'
 import { AccountForm, AssetForm, ContributionForm, EntryForm, GoalForm } from './forms'
 import { CategoryManager } from './CategoryManager'
 import { AccountsPage } from './pages/Accounts'
+import { CreditCardsPage } from './pages/CreditCards'
 import { DashboardPage } from './pages/Dashboard'
 import { EntriesPage } from './pages/Entries'
 import type { EntryFilter } from './pages/Entries'
@@ -18,10 +19,11 @@ import { WealthPage } from './pages/Wealth'
 import type { ModalKind, PageId } from './pages/shared'
 import { Brand, Button, ConfirmDialog, InlineError, LoadingScreen, Modal, MonthPicker, PageHeading, ThemeMenu, ThemeSelector, Toast } from './ui'
 
-const pagePaths: Record<PageId, string> = { dashboard: 'visao-geral', entries: 'movimentacoes', accounts: 'contas', wealth: 'patrimonio', goals: 'objetivos', journey: 'jornada' }
+const pagePaths: Record<PageId, string> = { dashboard: 'visao-geral', entries: 'movimentacoes', accounts: 'contas', cards: 'cartoes', wealth: 'patrimonio', goals: 'objetivos', journey: 'jornada' }
 const nav: { id: PageId; label: string; short: string; icon: LucideIcon }[] = [
   { id: 'dashboard', label: 'Visão geral', short: 'Início', icon: BarChart3 },
   { id: 'accounts', label: 'Minhas contas', short: 'Contas', icon: Wallet },
+  { id: 'cards', label: 'Cartões de crédito', short: 'Cartões', icon: CreditCard },
   { id: 'entries', label: 'Movimentações', short: 'Transações', icon: ArrowDownLeft },
   { id: 'goals', label: 'Metas & Sonhos', short: 'Metas', icon: Target },
   { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem },
@@ -252,8 +254,8 @@ export default function App() {
       .sort((a, b) => b.date.localeCompare(a.date))
       .map(entry => [
         entry.date,
-        entry.type === 'income' ? 'Receita' : entry.type === 'expense' ? 'Gasto' : 'Ajuste',
-        state.accounts.find(account => account.id === entry.accountId)?.name ?? '',
+        entry.cardPaymentId ? 'Pagamento de fatura' : entry.type === 'income' ? 'Receita' : entry.type === 'expense' ? 'Gasto' : 'Ajuste',
+        state.accounts.find(account => account.id === entry.accountId)?.name ?? state.creditCards?.cards.find(card => card.id === entry.cardId)?.name ?? '',
         entry.category,
         entry.subcategory ?? '',
         entry.title,
@@ -292,10 +294,13 @@ export default function App() {
     const searchTerm = query.trim().toLocaleLowerCase('pt-BR')
   const globalSearchResults = searchTerm ? [
     ...state.entries.filter(item => `${item.title} ${item.category} ${item.subcategory ?? ''} ${item.note}`.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 4).map(item => ({ id: `entry-${item.id}`, title: item.title, detail: `${item.category} · ${currency(Math.abs(signed(item)))}`, destination: 'entries' as PageId, query: item.title })),
+    ...(state.creditCards?.cards ?? []).filter(item => !item.archivedAt && item.name.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 3).map(item => ({ id:`card-${item.id}`,title:item.name,detail:'Cartão de crédito',destination:'cards' as PageId,query:'' })),
     ...state.accounts.filter(item => `${item.name} ${item.type} ${item.description}`.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 3).map(item => ({ id: `account-${item.id}`, title: item.name, detail: `Conta · ${currency(item.balanceCents)}`, destination: 'accounts' as PageId, query: '' })),
     ...state.goals.filter(item => item.title.toLocaleLowerCase('pt-BR').includes(searchTerm)).slice(0, 3).map(item => ({ id: `goal-${item.id}`, title: item.title, detail: item.kind === 'sonho' ? 'Sonho' : 'Meta', destination: 'goals' as PageId, query: '' })),
   ].slice(0, 7) : []
   const openSearchResult = (result: (typeof globalSearchResults)[number]) => {
+    const entry = state.entries.find(item => `entry-${item.id}` === result.id)
+    if (entry) setMonth(entry.date.slice(0, 7))
     setQuery(result.query)
     setEntryFilter('all')
     setGlobalSearchOpen(false)
@@ -380,7 +385,7 @@ export default function App() {
                 type="search"
                 placeholder="Buscar movimentações, contas, metas..."
                 value={query}
-                aria-label="Buscar movimentações, contas e metas"
+                aria-label="Buscar movimentações, contas, cartões e metas"
                 aria-expanded={globalSearchOpen && !!searchTerm}
                 aria-controls="global-search-results"
                 onFocus={() => setGlobalSearchOpen(true)}
@@ -440,6 +445,11 @@ export default function App() {
           {page === 'accounts' && <>
             <PageHeading eyebrow="CONTAS FINANCEIRAS" title="Minhas contas" description="Cada conta no seu lugar. Seu saldo sempre claro." action={<Button onClick={() => { setEditAccount(null); open('account') }}><Plus size={18} />Adicionar conta</Button>} />
             <AccountsPage {...pageProps} />
+          </>}
+
+          {page === 'cards' && <>
+            <PageHeading eyebrow="CRÉDITO ORGANIZADO" title="Cartões de crédito" description="Acompanhe compras, parcelas e pagamentos sem perder de vista suas contas." />
+            <CreditCardsPage state={state} month={month} setMonth={setMonth} toast={showToast} onUpdated={async () => { await refresh(); setAnalysis({}) }} />
           </>}
 
           {page === 'wealth' && <>
