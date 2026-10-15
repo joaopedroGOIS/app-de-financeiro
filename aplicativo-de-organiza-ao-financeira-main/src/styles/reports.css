@@ -37,3 +37,9 @@
   .dashboard-grid > .card.financial-report { grid-column: span 8; }
   .dashboard-grid > .card.category-report { grid-column: span 4; }
 }
+@media(max-width: 600px) {
+  .report-totals { grid-template-columns: 1fr; }
+  .report-totals > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .report-totals span { font-size: 12px; }
+  .report-totals strong { white-space: nowrap; font-size: 16px; }
+}
