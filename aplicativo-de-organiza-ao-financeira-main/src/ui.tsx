@@ -376,7 +376,7 @@ export function EvolutionChart({ data }: { data: EvolutionPoint[] }) {
   )
 }
 
-export type DonutSegment = { label: string; value: number; color: string }
+export type DonutSegment = { label: string; value: number; color: string; formattedValue?: string }
 
 export function DonutChart({ segments, centerValue, centerLabel }: { segments: DonutSegment[]; centerValue: string; centerLabel: string }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0)
@@ -385,11 +385,11 @@ export function DonutChart({ segments, centerValue, centerLabel }: { segments: D
   let offset = 0
   return (
     <div className="donut-wrap">
-      <svg className="donut" viewBox="0 0 120 120" role="img" aria-label={`Distribuição de gastos: ${segments.map(s => `${s.label} ${Math.round((s.value / (total || 1)) * 100)}%`).join(', ')}`}>
+      <svg className="donut" viewBox="0 0 120 120" role="img" aria-label={`Distribuição de gastos: ${segments.map(s => `${s.label}${s.formattedValue ? ` ${s.formattedValue}` : ''} ${Math.round((s.value / (total || 1)) * 100)}%`).join(', ')}`}>
         <circle className="donut-track" cx="60" cy="60" r={radius} />
         {total > 0 && segments.map(segment => {
           const length = (segment.value / total) * circumference
-          const dash = <circle key={segment.label} cx="60" cy="60" r={radius} fill="none" stroke={segment.color} strokeWidth={15} strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-offset} strokeLinecap="butt" />
+          const dash = <circle key={segment.label} cx="60" cy="60" r={radius} fill="none" stroke={segment.color} strokeWidth={15} strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-offset} strokeLinecap="butt"><title>{`${segment.label}: ${segment.formattedValue ?? segment.value} (${Math.round((segment.value / total) * 100)}%)`}</title></circle>
           offset += length
           return dash
         })}

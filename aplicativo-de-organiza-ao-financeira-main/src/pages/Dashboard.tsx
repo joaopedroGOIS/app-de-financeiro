@@ -1,6 +1,6 @@
 import { Activity, ArrowDownLeft, ArrowUpRight, Award, Banknote, BookOpen, CalendarClock, CarFront, Clapperboard, Coins, Flame, Gem, HeartPulse, House, Landmark, Pencil, Plus, Repeat2, Shapes, ShieldCheck, ShoppingBag, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Utensils, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { categories, categoryColor, compact, currency, dateToday, displayDate, monthName, monthShift, percent, signed } from '../data'
+import { categoryColor, compact, currency, dateToday, displayDate, monthName, monthShift, percent, signed } from '../data'
 import type { Entry, Goal } from '../data'
 import { Badge, Button, Card, CardHeader, DonutChart, EmptyState, EvolutionChart, GoalCard, ProgressBar } from '../ui'
 import type { EvolutionPoint } from '../ui'
@@ -33,8 +33,13 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
   const previousIncome = previousEntries.filter(entry => entry.type === 'income').reduce((sum, entry) => sum + entry.amountCents, 0)
   const previousExpenses = previousEntries.filter(entry => entry.type === 'expense').reduce((sum, entry) => sum + entry.amountCents, 0)
   const balance = state.accounts.reduce((sum, account) => sum + account.balanceCents, 0)
-  const categoryTotals = categories
-    .map(category => ({ ...category, cents: monthEntries.filter(entry => entry.type === 'expense' && entry.category === category.name).reduce((sum, entry) => sum + entry.amountCents, 0) }))
+  // O histórico é a fonte dos rótulos, inclusive categorias personalizadas ou arquivadas.
+  const expensesByCategory = new Map<string, number>()
+  for (const entry of monthEntries) {
+    if (entry.type !== 'expense') continue
+    expensesByCategory.set(entry.category, (expensesByCategory.get(entry.category) ?? 0) + entry.amountCents)
+  }
+  const categoryTotals = Array.from(expensesByCategory, ([name, cents]) => ({ name, cents }))
     .filter(category => category.cents > 0)
     .sort((a, b) => b.cents - a.cents)
   const upcoming = state.entries.filter(entry => entry.date > today).sort((a, b) => a.date.localeCompare(b.date))
@@ -195,18 +200,19 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
           {categoryTotals.length ? (
             <div className="category-panel">
               <DonutChart
-                segments={categoryTotals.map(category => ({ label: category.name, value: category.cents, color: categoryColor(category.name).color }))}
+                segments={categoryTotals.map(category => ({ label: category.name, value: category.cents, formattedValue: currency(category.cents), color: categoryColor(category.name).color }))}
                 centerValue={currency(expenses)}
                 centerLabel="gasto no mês"
               />
               <div className="category-list">
-                {categoryTotals.slice(0, 5).map(category => {
+                {categoryTotals.map(category => {
                   const tone = categoryColor(category.name)
                   return (
                     <div className="category-row" key={category.name}>
                       <span className="category-glyph" style={{ background: tone.soft, color: tone.color }}><CategoryGlyph name={category.name} /></span>
                       <div className="category-row-body">
                         <div className="category-line"><strong>{category.name}</strong><span>{percent(category.cents, expenses)}%</span></div>
+                        <small className="category-amount">{currency(category.cents)}</small>
                         <ProgressBar value={percent(category.cents, expenses)} size="thin" label={`Percentual de ${category.name} nos gastos de ${monthName(month)}`} />
                       </div>
                     </div>
