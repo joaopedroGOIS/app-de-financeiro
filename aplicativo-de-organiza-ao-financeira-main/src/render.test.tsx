@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { monthShift } from './data'
 import type { State } from './data'
 import { DEFAULT_THEME_MODE, THEME_STORAGE_KEY, applyResolvedTheme, isThemeMode, readStoredMode, resolveTheme, writeStoredMode } from './theme'
 import type { ThemeMode } from './theme'
@@ -142,6 +143,48 @@ test('dashboard mostra estado vazio em vez de dados fictícios', () => {
   assert.match(html, /Sua evolução começa agora/)
   assert.match(html, /Seu histórico começa aqui/)
   assert.match(html, /Qual é o próximo sonho\?/)
+})
+
+test('gráfico inclui categorias pessoais e históricas e soma somente gastos do mês', () => {
+  const entry = state.entries[1]
+  const chartState: State = { ...state, categories: [], entries: [
+    { ...entry, id: 'p1', category: 'Pets', amountCents: 5000 },
+    { ...entry, id: 'p2', category: 'Pets', amountCents: 10000 },
+    { ...entry, id: 'h1', category: 'Categoria antiga', amountCents: 5000 },
+    { ...entry, id: 'a1', category: 'Alimentação', amountCents: 10000 },
+    { ...entry, id: 'outside', category: 'Fora do mês', date: day(monthShift(month, -1), 0), amountCents: 90000 },
+    { ...entry, id: 'income', category: 'Receita excluída', type: 'income', amountCents: 90000 },
+    { ...entry, id: 'adjustment', category: 'Ajuste excluído', type: 'adjustment', amountCents: 90000 },
+  ] }
+  const html = renderToStaticMarkup(<DashboardPage {...pageProps} state={chartState} month={month} />)
+  const chart = html.slice(html.indexOf('Para onde foi sua grana?')).split('</section>')[0]
+  assert.match(chart, /Pets R\$\s150,00 50%/)
+  assert.match(chart, /Alimentação R\$\s100,00 33%/)
+  assert.match(chart, /Categoria antiga R\$\s50,00 17%/)
+  assert.match(chart, /R\$\s300,00/)
+  assert.match(chart, /<title>Pets: R\$\s150,00 \(50%\)<\/title>/)
+  assert.doesNotMatch(chart, /Fora do mês|Receita excluída|Ajuste excluído/)
+  assert.equal(chart.match(/class="category-row"/g)?.length, 3)
+})
+
+test('legenda do gráfico mostra todas as categorias, inclusive além das cinco maiores', () => {
+  const names = ['Pets', 'Assinaturas', 'Presentes', 'Viagens', 'Taxas', 'Doações', 'Hobbies']
+  const chartState: State = { ...state, entries: names.map((category, index) => ({
+    ...state.entries[1], id: `custom-${index}`, category, amountCents: 1000,
+  })) }
+  const html = renderToStaticMarkup(<DashboardPage {...pageProps} state={chartState} month={month} />)
+  const chart = html.slice(html.indexOf('Para onde foi sua grana?')).split('</section>')[0]
+  assert.equal(chart.match(/class="category-row"/g)?.length, names.length)
+  for (const name of names) assert.ok(chart.includes(`<strong>${name}</strong>`))
+  assert.match(chart, /R\$\s70,00/)
+})
+
+test('gráfico não cria fatias quando há somente receitas e ajustes', () => {
+  const chartState: State = { ...state, entries: state.entries.filter(entry => entry.type !== 'expense') }
+  const html = renderToStaticMarkup(<DashboardPage {...pageProps} state={chartState} month={month} />)
+  const chart = html.slice(html.indexOf('Para onde foi sua grana?')).split('</section>')[0]
+  assert.match(chart, /Tudo tranquilo por aqui/)
+  assert.doesNotMatch(chart, /class="donut"/)
 })
 
 test('páginas financeiras renderizam com dados reais', () => {

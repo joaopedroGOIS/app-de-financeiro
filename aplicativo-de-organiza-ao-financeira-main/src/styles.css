@@ -2289,6 +2289,13 @@ a {
   white-space: nowrap;
 }
 
+.category-amount {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
 /* Listas de movimentação */
 .entry-list {
   display: flex;

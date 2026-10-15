@@ -20,7 +20,8 @@ export const categories = [
 ]
 /** Cores resolvidas pelo tema ativo — nunca valores fixos. */
 export const categoryColor = (name: string) => {
-  const token = categories.find(category => category.name === name)?.token ?? 'default'
+  const hash = Array.from(name).reduce((value, char) => (value * 31 + char.codePointAt(0)!) >>> 0, 0)
+  const token = categories.find(category => category.name === name)?.token ?? categories[hash % categories.length].token
   return { color: `var(--cat-${token})`, soft: `var(--cat-${token}-soft)` }
 }
 export const incomeCategories = ['Salário', 'Freelance', 'Investimentos', 'Presente', 'Outros']
