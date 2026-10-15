@@ -1,7 +1,7 @@
 import type { Entry } from './data'
 
 export type CreditCard = { id: string; name: string; lastFour: string; limitCents: number; closingDay: number; dueDay: number; archivedAt: string | null }
-export type CardPurchase = { id: string; cardId: string; title: string; category: string; subcategory: string; amountCents: number; date: string; installments: number; note: string }
+export type CardPurchase = { id: string; cardId: string; title: string; category: string; subcategory: string; amountCents: number; interestCents?: number; date: string; installments: number; note: string }
 export type CardInstallment = { id: string; purchaseId: string; cardId: string; number: number; amountCents: number; dueDate: string; billMonth: string }
 export type CardPayment = { id: string; cardId: string; accountId: string; billMonth: string; amountCents: number; date: string; note: string }
 export type CardState = { cards: CreditCard[]; purchases: CardPurchase[]; installments: CardInstallment[]; payments: CardPayment[] }

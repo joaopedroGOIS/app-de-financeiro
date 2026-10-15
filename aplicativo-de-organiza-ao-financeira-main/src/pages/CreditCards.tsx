@@ -37,20 +37,26 @@ export function CreditCardForm({ initial, error, onSubmit }: SaveForm & { initia
 export function CardPurchaseForm({ card, availableCents, categories, subcategories, error, onSubmit }: SaveForm & { card: CreditCard; availableCents: number; categories: UserCategory[]; subcategories: UserSubcategory[] }) {
   const active = categories.filter(c=>c.type==='expense' && !c.archivedAt)
   const [title,setTitle] = useState(''), [value,setValue] = useState(''), [date,setDate] = useState(dateToday())
+  const [hasInterest,setHasInterest] = useState(false), [interest,setInterest] = useState('')
   const [count,setCount] = useState(1), [firstMonth,setFirstMonth] = useState('')
   const [category,setCategory] = useState(active[0]?.name ?? ''), [subcategory,setSubcategory] = useState(''), [note,setNote] = useState('')
   const [key] = useState(()=>crypto.randomUUID()), [pending,setPending] = useState(false)
   const first = firstMonth || firstCardBill(date,card.closingDay,card.dueDay)
-  const total = toCents(value), preview = installmentPreview(total,count,first,card.dueDay)
+  const principal = toCents(value), interestCents = hasInterest ? toCents(interest) : 0
+  const total = principal + interestCents, preview = installmentPreview(total,count,first,card.dueDay)
   const parent = active.find(c=>c.name===category), subs = subcategories.filter(s=>s.categoryId===parent?.id && !s.archivedAt)
-  const submit = async (event: FormEvent) => { event.preventDefault(); setPending(true); try { await onSubmit({cardId:card.id,title,amountCents:total,date,installments:count,firstMonth:first,category,subcategory,note},key) } finally { setPending(false) } }
+  const submit = async (event: FormEvent) => { event.preventDefault(); setPending(true); try { await onSubmit({cardId:card.id,title,principalCents:principal,interestCents,date,installments:count,firstMonth:first,category,subcategory,note},key) } finally { setPending(false) } }
   return <form className="form" onSubmit={submit}>
     <p className="form-description">{card.name} · Limite disponível: <strong>{currency(availableCents)}</strong>. O valor total da compra compromete o limite.</p>
     <label>Descrição<input autoFocus required maxLength={80} placeholder="Ex.: Compra no mercado" value={title} onChange={e=>setTitle(e.target.value)} /></label>
     <div className="form-row">
-      <label>Valor total da compra (R$)<input type="number" inputMode="decimal" min="0.01" max={inputMoney(availableCents)} step="0.01" required value={value} onChange={e=>setValue(e.target.value)} /></label>
+      <label>Valor original, sem juros (R$)<input type="number" inputMode="decimal" min="0.01" max={inputMoney(availableCents)} step="0.01" required value={value} onChange={e=>setValue(e.target.value)} /></label>
       <label>Data da compra<input type="date" required max={dateToday()} value={date} onChange={e=>{setDate(e.target.value);setFirstMonth('')}} /></label>
     </div>
+    <label className="check-field"><input type="checkbox" checked={hasInterest} onChange={e=>setHasInterest(e.target.checked)}/><span>Esta compra tem juros</span></label>
+    {hasInterest && <label>Juros totais da compra (R$)<input type="number" inputMode="decimal" min="0.01" max={inputMoney(availableCents)} step="0.01" required placeholder="Ex.: 200,00" value={interest} onChange={e=>setInterest(e.target.value)}/><small className="form-description">Informe o valor total dos juros em reais, não a taxa mensal. Ele será somado uma única vez ao valor original e dividido nas parcelas.</small></label>}
+    {principal>0 && <div className="info-note"><ShoppingBag size={18}/><p>Valor original: <strong>{currency(principal)}</strong><br/>Juros totais: <strong>{currency(interestCents)}</strong><br/>Total a pagar: <strong>{currency(total)}</strong></p></div>}
+    {total>availableCents && <InlineError>O total com juros ultrapassa o limite disponível do cartão.</InlineError>}
     <div className="form-row">
       <label>Parcelas<input type="number" min={1} max={60} step={1} required value={count} onChange={e=>setCount(Number(e.target.value))} /></label>
       <label>Primeira fatura<input type="month" required value={first} min={date.slice(0,7)} max={monthShift(date.slice(0,7),12)} onChange={e=>setFirstMonth(e.target.value)} /></label>
@@ -64,7 +70,7 @@ export function CardPurchaseForm({ card, availableCents, categories, subcategori
     {preview.length>0 && <details className="card-installment-preview"><summary>{count===1 ? 'Compra à vista no crédito' : `${count} parcelas`} · primeira em {displayDate(preview[0].dueDate)}</summary><ul>{preview.map(p=><li key={p.number}>{p.number}/{count} · {displayDate(p.dueDate)} · {currency(p.amountCents)}</li>)}</ul></details>}
     <p className="form-description">Cada parcela entra nas despesas do mês do vencimento. O pagamento da fatura não será uma nova despesa. Se o banco usar outra primeira fatura, ajuste o mês acima.</p>
     {error && <InlineError>{error}</InlineError>}
-    <Button type="submit" wide disabled={pending || !active.length || !preview.length || total>availableCents}>{pending?'Registrando...':'Registrar compra'}</Button>
+    <Button type="submit" wide disabled={pending || !active.length || !preview.length || principal<=0 || (hasInterest && interestCents<=0) || total>availableCents}>{pending?'Registrando...':'Registrar compra'}</Button>
   </form>
 }
 
@@ -120,7 +126,7 @@ export function CreditCardsPage({ state, onUpdated, toast, month, setMonth }: { 
             {data.payments.some(p=>p.cardId===selected.id&&p.billMonth===month) && <><h3 className="credit-payments-title">Pagamentos registrados</h3>{data.payments.filter(p=>p.cardId===selected.id&&p.billMonth===month).map(p=><div className="entry-row" key={p.id}><Check size={18}/><div className="entry-main"><strong>{state.accounts.find(a=>a.id===p.accountId)?.name??'Conta'}</strong><span className="entry-meta">{displayDate(p.date)}{p.note?` · ${p.note}`:''}</span></div><strong className="positive">{currency(p.amountCents)}</strong><button type="button" className="icon-button" aria-label="Desfazer registro de pagamento" onClick={()=>setConfirm({path:`/card-payments/${p.id}`,message:'Desfazer este registro? O saldo voltará à conta de origem, a dívida será reaberta e o limite será recalculado. Nenhuma operação será realizada no banco ou na operadora do cartão.'})}><Archive size={16}/></button></div>)}</>}
           </> : <EmptyState icon={<CreditCardIcon size={26}/>} title="Sem compras nesta fatura" text="Selecione outro mês ou registre uma compra neste cartão."/>}
         </Card>
-        {data.purchases.some(p=>p.cardId===selected.id) && <Card><CardHeader title="Compras do cartão" description="Valores totais das compras e parcelamento."/>{data.purchases.filter(p=>p.cardId===selected.id).map(p=><div className="entry-row" key={p.id}><div className="entry-main"><strong>{p.title}</strong><span className="entry-meta">{displayDate(p.date)} · {p.installments===1?'À vista no crédito':`${p.installments} parcelas`}</span></div><strong>{currency(p.amountCents)}</strong>{!selected.archivedAt && <button type="button" className="icon-button" aria-label={`Arquivar compra ${p.title}`} onClick={()=>setConfirm({path:`/card-purchases/${p.id}`,message:`Arquivar “${p.title}” e retirar suas parcelas das faturas? Compras em faturas com pagamentos registrados não podem ser arquivadas.`})}><Archive size={16}/></button>}</div>)}</Card>}
+        {data.purchases.some(p=>p.cardId===selected.id) && <Card><CardHeader title="Compras do cartão" description="Valores totais das compras e parcelamento."/>{data.purchases.filter(p=>p.cardId===selected.id).map(p=><div className="entry-row" key={p.id}><div className="entry-main"><strong>{p.title}</strong><span className="entry-meta">{displayDate(p.date)} · {p.installments===1?'À vista no crédito':`${p.installments} parcelas`}{(p.interestCents??0)>0 && <><br/>{currency(p.amountCents-(p.interestCents??0))} + {currency(p.interestCents??0)} de juros</>}</span></div><strong>{currency(p.amountCents)}</strong>{!selected.archivedAt && <button type="button" className="icon-button" aria-label={`Arquivar compra ${p.title}`} onClick={()=>setConfirm({path:`/card-purchases/${p.id}`,message:`Arquivar “${p.title}” e retirar suas parcelas das faturas? Compras em faturas com pagamentos registrados não podem ser arquivadas.`})}><Archive size={16}/></button>}</div>)}</Card>}
       </>}
     </> : <EmptyState icon={<CreditCardIcon size={30}/>} title="Seu primeiro cartão" text="Cadastre limite, fechamento e vencimento para acompanhar suas compras." action={<Button onClick={()=>open('create')}>Cadastrar cartão</Button>}/>}
     <div className="info-note"><CreditCardIcon size={20}/><p>Compras entram nas despesas do mês do vencimento de cada parcela. Pagamentos saem da conta de origem e reduzem a dívida, sem duplicar despesas. Parcelas futuras também comprometem o limite e o patrimônio. Evite registrar a mesma compra ou dívida novamente em Movimentações ou Bens e dívidas.</p></div>

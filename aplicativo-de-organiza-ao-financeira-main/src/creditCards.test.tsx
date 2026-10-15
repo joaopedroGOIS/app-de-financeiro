@@ -72,6 +72,8 @@ test('cadastro só pede identificação parcial e formulários mostram prévia e
   assert.doesNotMatch(form,/CVV|Número completo/)
   const buy=renderToStaticMarkup(<CardPurchaseForm card={card} availableCents={90000} categories={[{id:'cat',name:'Compras',type:'expense',archivedAt:null}]} subcategories={[]} error="" onSubmit={async()=>{}}/>)
   assert.match(buy,/Primeira fatura/)
+  assert.match(buy,/Esta compra tem juros/)
+  assert.match(buy,/Valor original, sem juros/)
   assert.match(buy,/Parcelas/)
   const pay=renderToStaticMarkup(<CardPaymentForm bill={cardBills(state)[0]} accounts={uiState.accounts} error="" onSubmit={async()=>{}}/>)
   assert.match(pay,/Conta de origem/)

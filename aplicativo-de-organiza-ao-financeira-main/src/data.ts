@@ -152,7 +152,7 @@ async function loadCreditCards(): Promise<{ state: CardState; enabled: boolean }
     const data = await rest<any>('rpc/credit_card_state', 'POST', '', {})
     return { enabled: true, state: {
       cards: data.cards.map((c: any) => ({ id:c.id,name:c.name,lastFour:c.last_four,limitCents:Number(c.limit_cents),closingDay:c.closing_day,dueDay:c.due_day,archivedAt:c.archived_at })),
-      purchases: data.purchases.map((p: any) => ({ id:p.id,cardId:p.card_id,title:p.title,category:p.category,subcategory:p.subcategory,amountCents:Number(p.amount_cents),date:p.purchase_date,installments:p.installment_count,note:p.note })),
+      purchases: data.purchases.map((p: any) => ({ id:p.id,cardId:p.card_id,title:p.title,category:p.category,subcategory:p.subcategory,amountCents:Number(p.amount_cents),interestCents:Number(p.interest_cents ?? 0),date:p.purchase_date,installments:p.installment_count,note:p.note })),
       installments: data.installments.map((i: any) => ({ id:i.id,purchaseId:i.purchase_id,cardId:i.card_id,number:i.installment_number,amountCents:Number(i.amount_cents),dueDate:i.due_date,billMonth:i.bill_month.slice(0,7) })),
       payments: data.payments.map((p: any) => ({ id:p.id,cardId:p.card_id,accountId:p.account_id,billMonth:p.bill_month.slice(0,7),amountCents:Number(p.amount_cents),date:p.payment_date,note:p.note })),
     } }
@@ -294,7 +294,7 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   }
   if (cardId && method === 'DELETE') return await rest('rpc/archive_credit_card','POST','',{p_id:decodeURIComponent(cardId[1])}) as T
   if (path === '/card-purchases' && method === 'POST') {
-    return await rest('rpc/create_card_purchase','POST','',{p_card_id:body.cardId,p_title:body.title,p_category:body.category,p_subcategory:body.subcategory,p_amount_cents:body.amountCents,p_date:body.date,p_installments:body.installments,p_first_month:body.firstMonth ? `${body.firstMonth}-01` : null,p_note:body.note,p_key:idempotencyKey(options)}) as T
+    return await rest('rpc/create_card_purchase_with_interest','POST','',{p_card_id:body.cardId,p_title:body.title,p_category:body.category,p_subcategory:body.subcategory,p_principal_cents:body.principalCents,p_interest_cents:body.interestCents ?? 0,p_date:body.date,p_installments:body.installments,p_first_month:body.firstMonth ? `${body.firstMonth}-01` : null,p_note:body.note,p_key:idempotencyKey(options)}) as T
   }
   const cardPurchase = path.match(/^\/card-purchases\/([^/]+)$/)
   if (cardPurchase && method === 'DELETE') return await rest('rpc/archive_card_purchase','POST','',{p_id:decodeURIComponent(cardPurchase[1])}) as T
