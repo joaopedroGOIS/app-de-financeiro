@@ -140,7 +140,7 @@ test('dashboard mostra estado vazio em vez de dados fictícios', () => {
     stats: { reserveCents: 0, netWorthCents: 0, streak: 0, financialClass: null },
   }
   const html = renderToStaticMarkup(<DashboardPage {...pageProps} state={empty} month={month} />)
-  assert.match(html, /Sua evolução começa agora/)
+  assert.match(html, /Seu relatório começa aqui/)
   assert.match(html, /Seu histórico começa aqui/)
   assert.match(html, /Qual é o próximo sonho\?/)
 })
