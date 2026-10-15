@@ -42,7 +42,8 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
   const categoryTotals = Array.from(expensesByCategory, ([name, cents]) => ({ name, cents }))
     .filter(category => category.cents > 0)
     .sort((a, b) => b.cents - a.cents)
-  const upcoming = state.entries.filter(entry => entry.date > today).sort((a, b) => a.date.localeCompare(b.date))
+  const recentEntries = state.entries.filter(entry => entry.date <= today)
+  const upcoming = state.entries.filter(entry => entry.date > today && !entry.settled && !entry.cardPaymentId).sort((a, b) => a.date.localeCompare(b.date))
   const evolution: EvolutionPoint[] = Array.from({ length: 6 }, (_, index) => {
     const key = monthShift(month, index - 5)
     const value = state.entries.filter(entry => entry.date.slice(0, 7) === key && entry.type !== 'adjustment').reduce((sum, entry) => sum + signed(entry), 0)
@@ -101,7 +102,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
             <div>
               <span className="net-worth-label">PATRIMÔNIO LÍQUIDO REGISTRADO</span>
               <strong className="net-worth-value">{currency(state.stats.netWorthCents)}</strong>
-              <small>Contas + bens − dívidas</small>
+              <small>Contas + bens − dívidas, incluindo cartões</small>
             </div>
             <span className="net-worth-icon"><Gem size={21} /></span>
           </div>
@@ -236,9 +237,9 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
 
         <Card className="span-7">
           <CardHeader title="Movimentações recentes" description="Os últimos passos da sua organização" action={<Button variant="ghost" size="sm" onClick={() => go('entries')}>Ver todas <ArrowUpRight size={15} /></Button>} />
-          {state.entries.length ? (
+          {recentEntries.length ? (
             <div className="entry-list">
-              {state.entries.slice(0, 5).map(entry => (
+              {recentEntries.slice(0, 5).map(entry => (
                 <EntryRow key={entry.id} entry={entry} account={accountOf(state, entry)} onEdit={() => { editEntry(entry); open('entry') }} onRemove={() => requestRemove(archiveRequest(entry))} />
               ))}
             </div>
@@ -299,7 +300,7 @@ function MonthlySummary({ month, income, expenses, result, incomeTrend, expenseT
   )
 }
 
-const accountOf = (state: PageProps['state'], entry: Entry) => state.accounts.find(account => account.id === entry.accountId)?.name ?? 'Conta'
+const accountOf = (state: PageProps['state'], entry: Entry) => state.accounts.find(account => account.id === entry.accountId)?.name ?? state.creditCards?.cards.find(card => card.id === entry.cardId)?.name ?? 'Conta'
 const archiveRequest = (entry: Entry) => ({
   path: `/entries/${entry.id}`,
   title: 'Arquivar movimentação',
@@ -327,8 +328,10 @@ export function EntryRow({ entry, account, onEdit, onRemove }: { entry: Entry; a
       </div>
       <strong className={`entry-value ${entry.type}`}>{value > 0 ? '+' : value < 0 ? '−' : ''}{currency(Math.abs(entry.amountCents))}</strong>
       <div className="entry-actions">
+        {entry.cardId || entry.cardPaymentId ? <small>Em Cartões</small> : <>
         <button type="button" className="icon-button" onClick={onEdit} aria-label={`Editar ${entry.title}`} title="Editar"><Pencil size={16} /></button>
         <button type="button" className="icon-button danger" onClick={onRemove} aria-label={`Arquivar ${entry.title}`} title="Arquivar"><Trash2 size={16} /></button>
+      </>}
       </div>
     </div>
   )

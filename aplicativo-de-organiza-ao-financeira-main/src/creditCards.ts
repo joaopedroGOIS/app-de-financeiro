@@ -1,0 +1,70 @@
+import type { Entry } from './data'
+
+export type CreditCard = { id: string; name: string; lastFour: string; limitCents: number; closingDay: number; dueDay: number; archivedAt: string | null }
+export type CardPurchase = { id: string; cardId: string; title: string; category: string; subcategory: string; amountCents: number; date: string; installments: number; note: string }
+export type CardInstallment = { id: string; purchaseId: string; cardId: string; number: number; amountCents: number; dueDate: string; billMonth: string }
+export type CardPayment = { id: string; cardId: string; accountId: string; billMonth: string; amountCents: number; date: string; note: string }
+export type CardState = { cards: CreditCard[]; purchases: CardPurchase[]; installments: CardInstallment[]; payments: CardPayment[] }
+export const emptyCardState = (): CardState => ({ cards: [], purchases: [], installments: [], payments: [] })
+export type CardBill = { cardId: string; month: string; dueDate: string; totalCents: number; paidCents: number; remainingCents: number; installments: CardInstallment[] }
+
+export function cardBills(state: CardState): CardBill[] {
+  const bills = new Map<string, CardBill>()
+  for (const item of state.installments) {
+    const key = `${item.cardId}:${item.billMonth}`
+    const bill = bills.get(key) ?? { cardId: item.cardId, month: item.billMonth, dueDate: item.dueDate, totalCents: 0, paidCents: 0, remainingCents: 0, installments: [] }
+    bill.totalCents += item.amountCents
+    if (item.dueDate < bill.dueDate) bill.dueDate = item.dueDate
+    bill.installments.push(item)
+    bills.set(key, bill)
+  }
+  for (const payment of state.payments) {
+    const bill = bills.get(`${payment.cardId}:${payment.billMonth}`)
+    if (bill) bill.paidCents += payment.amountCents
+  }
+  return [...bills.values()].map(bill => ({ ...bill, remainingCents: Math.max(0, bill.totalCents - bill.paidCents) })).sort((a, b) => a.month.localeCompare(b.month))
+}
+
+export function cardOutstanding(state: CardState, cardId?: string) {
+  return cardBills(state).filter(bill => !cardId || bill.cardId === cardId).reduce((sum, bill) => sum + bill.remainingCents, 0)
+}
+
+export function cardExpenseEntries(state: CardState): Entry[] {
+  const purchases = new Map(state.purchases.map(purchase => [purchase.id, purchase]))
+  const bills = new Map(cardBills(state).map(bill => [`${bill.cardId}:${bill.month}`, bill]))
+  return state.installments.flatMap(item => {
+    const purchase = purchases.get(item.purchaseId)
+    if (!purchase) return []
+    return [{ id: `card:${item.id}`, accountId: item.cardId, cardId: item.cardId, settled: bills.get(`${item.cardId}:${item.billMonth}`)?.remainingCents === 0,
+      title: `${purchase.title}${purchase.installments > 1 ? ` (${item.number}/${purchase.installments})` : ''}`,
+      category: purchase.category, subcategory: purchase.subcategory, type: 'expense' as const,
+      amountCents: item.amountCents, date: item.dueDate, note: purchase.note }]
+  })
+}
+
+export function cardCashPayments(state: CardState, accountId: string) {
+  return state.payments.filter(payment => payment.accountId === accountId).reduce((sum, payment) => sum + payment.amountCents, 0)
+}
+
+function calendarDay(month: string, day: number) {
+  const [year, m] = month.split('-').map(Number)
+  return `${month}-${String(Math.min(day, new Date(Date.UTC(year, m, 0)).getUTCDate())).padStart(2, '0')}`
+}
+function shiftMonth(month: string, offset: number) {
+  const [year, m] = month.split('-').map(Number)
+  return new Date(Date.UTC(year, m - 1 + offset, 1)).toISOString().slice(0, 7)
+}
+export function firstCardBill(date: string, closingDay: number, dueDay: number) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(date) || !Number.isInteger(closingDay) || closingDay < 1 || closingDay > 31 || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) return ''
+  let closingMonth = date.slice(0, 7)
+  // Compras no dia do fechamento entram na próxima fatura.
+  if (date >= calendarDay(closingMonth, closingDay)) closingMonth = shiftMonth(closingMonth, 1)
+  const dueMonth = dueDay <= closingDay ? shiftMonth(closingMonth, 1) : closingMonth
+  return dueMonth
+}
+export function installmentPreview(totalCents: number, count: number, firstMonth: string, dueDay: number) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(firstMonth) || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) return []
+  if (!Number.isSafeInteger(totalCents) || !Number.isInteger(count) || count < 1 || count > 60 || totalCents < count) return []
+  const base = Math.floor(totalCents / count), remainder = totalCents % count
+  return Array.from({ length: count }, (_, index) => ({ number: index + 1, amountCents: base + (index < remainder ? 1 : 0), dueDate: calendarDay(shiftMonth(firstMonth, index), dueDay) }))
+}

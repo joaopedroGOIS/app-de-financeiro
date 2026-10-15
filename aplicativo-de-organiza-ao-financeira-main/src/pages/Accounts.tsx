@@ -21,7 +21,7 @@ export function AccountsPage({ state, go, open, editAccount, requestRemove }: Pa
       <div className="section-heading">
         <div>
           <h2>Suas contas</h2>
-          <p>Os saldos são calculados com o valor inicial e as movimentações registradas.</p>
+          <p>Os saldos incluem o valor inicial, as movimentações e os pagamentos de fatura.</p>
         </div>
         <span className="count-pill">{state.accounts.length} {state.accounts.length === 1 ? 'conta' : 'contas'}</span>
       </div>
@@ -53,7 +53,7 @@ export function AccountsPage({ state, go, open, editAccount, requestRemove }: Pa
 
       <div className="info-note">
         <CircleHelp size={19} />
-        <p><strong>Como funciona o saldo?</strong> O valor inicial é definido ao criar a conta. Depois, receitas, gastos e ajustes alteram o saldo calculado. Para corrigir um saldo existente, registre um ajuste — assim o histórico é preservado.</p>
+        <p><strong>Como funciona o saldo?</strong> O valor inicial é definido ao criar a conta. Depois, receitas, gastos, ajustes e pagamentos de fatura alteram o saldo calculado. Para corrigir um saldo existente, registre um ajuste — assim o histórico é preservado.</p>
       </div>
 
       {!state.accounts.length && (

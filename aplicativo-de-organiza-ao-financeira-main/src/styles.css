@@ -6424,3 +6424,31 @@ body {
     width: 100%;
   }
 }
+
+/* Cartões de crédito */
+.credit-card-tabs { display:flex; gap:12px; overflow-x:auto; padding-bottom:8px; margin-bottom:20px; }
+.credit-card-tab { display:flex; align-items:center; gap:10px; flex-shrink:0; border:1px solid var(--border); border-radius:12px; padding:14px 18px; background:var(--surface); color:var(--text-secondary); }
+.credit-card-tab.active { border-color:var(--primary); color:var(--text); background:var(--primary-soft); }
+.credit-card-overview { margin-bottom:20px; }
+.credit-card-overview .mini-stats { margin:20px 0; }
+.credit-card-overview > .btn { margin-top:20px; }
+.credit-card-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.credit-bill-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:20px 0; }
+.credit-bill-heading h3 { font-size:24px; margin:8px 0; }
+.credit-bill-heading small, .credit-bill-heading span { color:var(--text-secondary); }
+.credit-bill-picker { display:flex; align-items:center; gap:12px; flex-wrap:wrap; color:var(--text-secondary); }
+.credit-bill-picker select { max-width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; color:var(--text); background:var(--surface); }
+.credit-payments-title { margin-top:24px; }
+.card-installment-preview { padding:12px; border:1px solid var(--border); border-radius:12px; color:var(--text-secondary); }
+.card-installment-preview summary { cursor:pointer; }
+.card-installment-preview ul { padding-left:20px; max-height:200px; overflow:auto; }
+.card-installment-preview li { margin-top:8px; }
+.entry-actions > small { font-size:10px; color:var(--text-muted); }
+@media(max-width:640px) {
+  .credit-card-overview .section-heading { align-items:flex-start; flex-direction:column; }
+  .credit-card-overview .mini-stats { grid-template-columns:1fr; }
+  .credit-bill-heading { align-items:flex-start; flex-direction:column; }
+  .credit-card-actions { width:100%; }
+  .credit-card-tabs { margin-right:-8px; }
+  .bottom-nav-item { min-width:0; flex:1; }
+}

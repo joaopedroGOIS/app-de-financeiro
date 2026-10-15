@@ -5,7 +5,7 @@ import { Button, Card, EmptyState } from '../ui'
 import { EntryRow } from './Dashboard'
 import type { PageProps } from './shared'
 
-type EntryFilter = 'all' | 'income' | 'expense' | 'adjustment'
+type EntryFilter = 'all' | 'income' | 'expense' | 'adjustment' | 'payment'
 
 export function EntriesPage({ state, month, query, entryFilter, setQuery, setEntryFilter, monthPicker, go, open, editEntry, requestRemove }: PageProps & {
   month: string
@@ -20,8 +20,8 @@ export function EntriesPage({ state, month, query, entryFilter, setQuery, setEnt
   const expenses = monthEntries.filter(entry => entry.type === 'expense').reduce((sum, entry) => sum + entry.amountCents, 0)
   const needle = query.toLocaleLowerCase('pt-BR')
   const filtered = monthEntries.filter(entry =>
-    (entryFilter === 'all' || entry.type === entryFilter) &&
-    `${entry.title} ${entry.category} ${entry.subcategory ?? ''} ${state.accounts.find(account => account.id === entry.accountId)?.name ?? ''}`.toLocaleLowerCase('pt-BR').includes(needle))
+    (entryFilter === 'all' || (entryFilter === 'payment' ? !!entry.cardPaymentId : entry.type === entryFilter && !entry.cardPaymentId)) &&
+    `${entry.title} ${entry.category} ${entry.subcategory ?? ''} ${state.accounts.find(account => account.id === entry.accountId)?.name ?? state.creditCards?.cards.find(card => card.id === entry.cardId)?.name ?? ''}`.toLocaleLowerCase('pt-BR').includes(needle))
   const sortedEntries = [...filtered].sort((a, b) => b.date.localeCompare(a.date))
   const dayGroups = sortedEntries.reduce((groups, entry) => {
     const entries = groups.get(entry.date) ?? []
@@ -54,7 +54,7 @@ export function EntriesPage({ state, month, query, entryFilter, setQuery, setEnt
             <input aria-label="Buscar movimentações" placeholder="Buscar movimentação..." value={query} onChange={event => setQuery(event.target.value)} />
           </div>
           <div className="filter-tabs" role="group" aria-label="Filtrar movimentações">
-            {([['all', 'Todas'], ['expense', 'Gastos'], ['income', 'Receitas'], ['adjustment', 'Ajustes']] as const).map(([key, label]) => (
+            {([['all', 'Todas'], ['expense', 'Gastos'], ['income', 'Receitas'], ['adjustment', 'Ajustes'], ['payment', 'Pagamentos']] as const).map(([key, label]) => (
               <button key={key} type="button" className={entryFilter === key ? 'active' : ''} aria-pressed={entryFilter === key} onClick={() => setEntryFilter(key)}>{label}</button>
             ))}
           </div>
@@ -72,7 +72,7 @@ export function EntriesPage({ state, month, query, entryFilter, setQuery, setEnt
                     <EntryRow
                       key={entry.id}
                       entry={entry}
-                      account={state.accounts.find(account => account.id === entry.accountId)?.name ?? 'Conta'}
+                      account={state.accounts.find(account => account.id === entry.accountId)?.name ?? state.creditCards?.cards.find(card => card.id === entry.cardId)?.name ?? 'Conta'}
                       onEdit={() => { editEntry(entry); open('entry') }}
                       onRemove={() => requestRemove({ path: `/entries/${entry.id}`, title: 'Arquivar movimentação', description: `Arquivar “${entry.title}”? O registro fica preservado no histórico do servidor, mas deixa de compor seus saldos.` })}
                     />
@@ -89,6 +89,7 @@ export function EntriesPage({ state, month, query, entryFilter, setQuery, setEnt
             action={state.accounts.length ? addButton : <Button onClick={() => go('accounts')}>Criar conta</Button>}
           />
         )}
+        <p className="card-description">Compras de cartão aparecem no mês do vencimento de cada parcela. Pagamentos de fatura aparecem como saídas da conta, sem entrar novamente nas despesas; gerencie esses registros em Cartões.</p>
         <div className="list-bottom">{filtered.length} {filtered.length === 1 ? 'movimentação encontrada' : 'movimentações encontradas'}</div>
       </Card>
     </>

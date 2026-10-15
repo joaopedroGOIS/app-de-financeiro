@@ -1,4 +1,4 @@
-export type PageId = 'dashboard' | 'entries' | 'accounts' | 'wealth' | 'goals' | 'journey'
+export type PageId = 'dashboard' | 'entries' | 'accounts' | 'cards' | 'wealth' | 'goals' | 'journey'
 export type ModalKind = 'entry' | 'account' | 'asset' | 'goal' | 'contribution' | 'profile'
 
 import type { Account, Asset, Entry, Goal, State } from '../data'
