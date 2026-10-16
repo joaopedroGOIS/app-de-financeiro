@@ -36,7 +36,7 @@ export function difficultyByMonths(months: number): Difficulty {
   if (months <= 6) return 'Fácil'
   if (months <= 12) return 'Moderada'
   if (months <= 24) return 'Difícil'
-  if (months < 48) return 'Muito difícil'
+  if (months <= 48) return 'Muito difícil'
   return 'Lendária'
 }
 export function analyzeDream(input: { remainingCents: number; deadline?: string | null; entries: Pick<Entry, 'type' | 'amountCents' | 'date'>[]; today: string }) {

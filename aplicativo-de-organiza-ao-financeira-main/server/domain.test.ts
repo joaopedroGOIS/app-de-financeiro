@@ -25,7 +25,7 @@ test('limiares oficiais do esforço com prazo', () => {
   for (const [index, expected] of cases) assert.equal(difficultyByEffort(index), expected)
 })
 test('limiares sem prazo, inclusive o caso explícito de 48 meses do documento', () => {
-  const cases: [number, string][] = [[6, 'Fácil'], [6.1, 'Moderada'], [12, 'Moderada'], [12.1, 'Difícil'], [24, 'Difícil'], [24.1, 'Muito difícil'], [47.9, 'Muito difícil'], [48, 'Lendária'], [49, 'Lendária']]
+  const cases: [number, string][] = [[6, 'Fácil'], [6.1, 'Moderada'], [12, 'Moderada'], [12.1, 'Difícil'], [24, 'Difícil'], [24.1, 'Muito difícil'], [47.9, 'Muito difícil'], [48, 'Muito difícil'], [49, 'Lendária']]
   for (const [months, expected] of cases) assert.equal(difficultyByMonths(months), expected)
 })
 test('sem seis meses completos, analisador não inventa capacidade', () => {

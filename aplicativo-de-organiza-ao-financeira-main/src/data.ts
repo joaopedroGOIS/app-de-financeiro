@@ -9,8 +9,11 @@ export type UserSubcategory = { id: string; categoryId: string; name: string; ar
 export type Asset = { id: string; name: string; kind: 'asset' | 'liability'; amountCents: number; note: string }
 export type Goal = { id: string; title: string; kind: 'meta' | 'sonho'; targetCents: number; savedCents: number; icon: string; deadline: string | null; milestones: number[] }
 /** `nextLevelXp` é `null` enquanto a curva oficial de XP não estiver configurada no servidor. */
-export type Progress = { xp_total: number; level: number; graninha_balance: number; nextLevelXp: number | null }
-export type State = { creditCards?: CardState; creditCardsEnabled?: boolean; user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: null } }
+export type Progress = { xp_total: number; level: number; graninha_balance: number; nextLevelXp: number | null; currentLevelXp?: number | null; curveVersion?: string | null }
+export type Reward = { id: string; event_id: string; reward_type: string; amount: number; reason_code: string; config_version: string; created_at: string; metadata: { kind?: string; milestone?: string }; adjustment_of?: string | null }
+export type Gamification = { progress: Progress; streak: number; rewards: Reward[]; milestones: { goal_id: string; title: string; milestone: number; created_at: string }[]; behaviors: { code: string; kind: string; period_start: string }[]; streakMilestones: { milestone: number; cycle_start: string }[]; configVersion: string | null; pending: number; awaitingConfig: number; unavailable?: boolean }
+export type FinancialClass = { name: string; reserveCents: number; version: string; history: {id:string;class_code:string;reserve_cents:number;created_at:string}[] }
+export type State = { financialClass?: FinancialClass; gamification?: Gamification; creditCards?: CardState; creditCardsEnabled?: boolean; user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: string | null } }
 export type Analysis = { status: 'insufficient' | 'expired' | 'ready'; difficulty?: string; confidence: 'baixa' | 'alta'; monthsRecorded: number; remainingCents?: number; capacityCents?: number; estimatedMonths?: number; needMonthlyCents?: number; monthsLeft?: number; effortIndex?: number; formulaVersion: string }
 
 /** `token` aponta para os pares `--cat-*` definidos em `styles/tokens.css`, um por tema. */
@@ -163,6 +166,12 @@ async function loadCreditCards(): Promise<{ state: CardState; enabled: boolean }
   }
 }
 async function getState(): Promise<State> {
+  // Transação independente: falhas de recompensas nunca desfazem a operação financeira.
+  try { await rest('rpc/process_my_rewards','POST','',{}) } catch { /* Estado abaixo informa pendências; uma próxima sincronização reprocessa. */ }
+  let financialClass: FinancialClass | undefined
+  try { financialClass = await rest<FinancialClass>('rpc/financial_class_state','POST','',{}) } catch { /* Nova consulta tenta novamente. */ }
+  let gamification: Gamification | undefined
+  try { gamification = await rest<Gamification>('rpc/gamification_state','POST','',{}) } catch { /* Permite atualizar o banco antes/depois do frontend sem bloquear finanças. */ }
   const [user, profiles, accounts, entries, archived, categories, subcategories, assets, goals, contributions, milestones, progress, preferences, creditCards] = await Promise.all([
     authRequest('user', undefined, true),
     rest('profiles','GET',query({select:'id,name'})),
@@ -185,6 +194,7 @@ async function getState(): Promise<State> {
   const contributionsByGoal = rows<any>(contributions), milestoneRows = rows<any>(milestones)
   const progressRow = one<any>(progress) ?? {}
   return {
+    gamification, financialClass,
     creditCards: creditCards.state, creditCardsEnabled: creditCards.enabled,
     user: { id: user.id, name: profile.name || user.user_metadata?.name || '', email: user.email || '' },
     accounts: accountRows.map(a => ({ id:a.id,name:a.name,type:a.type,openingCents:Number(a.opening_cents),isReserve:a.is_reserve,description:a.description,balanceCents:stats.balances.find(b=>b.id===a.id)?.balanceCents ?? 0 })),
@@ -198,9 +208,9 @@ async function getState(): Promise<State> {
     archivedEntries: rows<any>(archived).map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,subcategory:e.subcategory ?? '',type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note,archivedAt:e.archived_at })),
     assets: assetRows.map(a => ({ id:a.id,name:a.name,kind:a.kind,amountCents:Number(a.amount_cents),note:a.note })),
     goals: rows<any>(goals).map(g => ({ id:g.id,title:g.title,kind:g.kind,targetCents:Number(g.target_cents),icon:g.icon,deadline:g.deadline,savedCents:contributionsByGoal.filter(c=>c.goal_id===g.id).reduce((sum,c)=>sum+Number(c.amount_cents),0),milestones:milestoneRows.filter(m=>m.goal_id===g.id).map(m=>Number(m.milestone)) })),
-    progress: { xp_total:Number(progressRow.xp_total ?? 0),level:Number(progressRow.level ?? 1),graninha_balance:Number(progressRow.graninha_balance ?? 0),nextLevelXp:null },
+    progress: gamification?.progress ?? { xp_total:Number(progressRow.xp_total ?? 0),level:Number(progressRow.level ?? 1),graninha_balance:Number(progressRow.graninha_balance ?? 0),nextLevelXp:null },
     preferences: { theme:(one<any>(preferences)?.theme ?? null) as ThemeMode | null },
-    stats: { reserveCents:stats.reserveCents,netWorthCents:stats.netWorthCents,streak:stats.streak,financialClass:null },
+    stats: { reserveCents:stats.reserveCents,netWorthCents:stats.netWorthCents,streak:gamification?.streak ?? 0,financialClass:financialClass?.name ?? null },
   }
 }
 function parseBody(options: RequestInit) {
@@ -209,54 +219,9 @@ function parseBody(options: RequestInit) {
 }
 const idempotencyKey = (options: RequestInit) => new Headers(options.headers).get('Idempotency-Key') || crypto.randomUUID()
 async function difficulty(goalId: string): Promise<Analysis> {
-  const [user, goalRows, contributionRows, entryRows, creditCards] = await Promise.all([
-    authRequest('user',undefined,true),
-    rest('goals','GET',query({select:'*',id:`eq.${goalId}`,archived_at:'is.null',limit:'1'})),
-    rest('contributions','GET',query({select:'amount_cents',goal_id:`eq.${goalId}`})),
-    rest('entries','GET',query({select:'type,amount_cents,date',archived_at:'is.null',type:'in.(income,expense)'})),
-    loadCreditCards(),
-  ])
-  const goal = one<any>(goalRows)
-  if (!goal) throw new ApiError('Objetivo não encontrado.',404)
-  if (goal.kind !== 'sonho') throw new ApiError('Somente Sonhos possuem análise de dificuldade.',400)
-  const saved = rows<any>(contributionRows).reduce((sum,c)=>sum+Number(c.amount_cents),0)
-  const today = currentDate(), month = today.slice(0,7)
-  const [year, m] = month.split('-').map(Number)
-  const keys = Array.from({length:6},(_,i)=>new Date(Date.UTC(year,m-2-i,1)).toISOString().slice(0,7))
-  const financialEntries = [...rows<any>(entryRows), ...cardExpenseEntries(creditCards.state).map(e=>({type:e.type,amount_cents:e.amountCents,date:e.date}))]
-  const monthly = keys.map(key => {
-    const period = financialEntries.filter(e=>String(e.date).slice(0,7)===key && e.type!=='adjustment')
-    return { count:period.length,balance:period.reduce((s,e)=>s+(e.type==='income'?Number(e.amount_cents):-Number(e.amount_cents)),0) }
-  })
-  const positive = monthly.filter(m=>m.balance>0).map(m=>m.balance)
-  let result: any
-  if (monthly.some(m=>!m.count) || !positive.length) result={status:'insufficient',confidence:'baixa',monthsRecorded:monthly.filter(m=>m.count).length}
-  else {
-    const ordered=[...positive].sort((a,b)=>a-b), middle=Math.floor(ordered.length/2)
-    const twiceMedian=ordered.length%2?ordered[middle]*2:ordered[middle-1]+ordered[middle]
-    const capacity=Number(BigInt(twiceMedian)*7n/20n), remaining=Math.max(0,Number(goal.target_cents)-saved)
-    if (capacity<=0) result={status:'insufficient',confidence:'baixa',monthsRecorded:6}
-    else if (!remaining) result={status:'ready',difficulty:'Fácil',confidence:'alta',capacityCents:capacity,remainingCents:0,estimatedMonths:0,monthsRecorded:6}
-    else if (goal.deadline) {
-      const [dy,dm,dd]=String(goal.deadline).split('-').map(Number), [ty,tm,td]=today.split('-').map(Number)
-      const monthsLeft=Math.max(0,(dy-ty)*12+dm-tm+(dd>td?1:0))
-      if (!monthsLeft) result={status:'expired',confidence:'alta',capacityCents:capacity,remainingCents:remaining,monthsRecorded:6}
-      else {
-        const needMonthlyCents=Math.ceil(remaining/monthsLeft), effortIndex=needMonthlyCents/capacity
-        const difficulty=effortIndex<=.5?'Fácil':effortIndex<=.75?'Moderada':effortIndex<=1?'Difícil':effortIndex<=1.5?'Muito difícil':'Lendária'
-        result={status:'ready',difficulty,confidence:'alta',capacityCents:capacity,remainingCents:remaining,monthsLeft,needMonthlyCents,effortIndex,monthsRecorded:6}
-      }
-    } else {
-      const estimatedMonths=remaining/capacity
-      const difficulty=estimatedMonths<=6?'Fácil':estimatedMonths<=12?'Moderada':estimatedMonths<=24?'Difícil':estimatedMonths<48?'Muito difícil':'Lendária'
-      result={status:'ready',difficulty,confidence:'alta',capacityCents:capacity,remainingCents:remaining,estimatedMonths,monthsRecorded:6}
-    }
-  }
-  const inputs={remainingCents:Math.max(0,Number(goal.target_cents)-saved),deadline:goal.deadline,entries:financialEntries.map(e=>({type:e.type,amountCents:Number(e.amount_cents),date:e.date})),today}
-  const previous=await rest<any[]>('difficulty_assessments','GET',query({select:'inputs_json',goal_id:`eq.${goal.id}`,order:'calculated_at.desc',limit:'1'}))
-  if (JSON.stringify(previous[0]?.inputs_json)!==JSON.stringify(inputs)) await rest('difficulty_assessments','POST','',{user_id:user.id,goal_id:goal.id,difficulty_code:result.status==='ready'?result.difficulty:result.status,inputs_json:inputs,result_json:result,confidence_level:result.confidence,formula_version:'difficulty_formula_v1'},{prefer:'return=minimal'})
-  return {...result,formulaVersion:'difficulty_formula_v1'}
+  return rest<Analysis>('rpc/assess_dream','POST','',{p_goal_id:goalId})
 }
+
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   ensureConfig()
   const method=(options.method||'GET').toUpperCase(), body=parseBody(options)
@@ -288,6 +253,7 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
     await rest('user_preferences','POST','',{user_id:user.id,theme:body.theme},{prefer:'resolution=merge-duplicates,return=minimal'})
     return {ok:true,theme:body.theme} as T
   }
+  if (path==='/routines' && method==='POST') return await rest('rpc/complete_financial_routine','POST','',{p_kind:body.kind}) as T
   const cardId = path.match(/^\/credit-cards\/([^/]+)$/)
   if ((path === '/credit-cards' && method === 'POST') || (cardId && method === 'PATCH')) {
     return await rest('rpc/save_credit_card','POST','',{p_id:cardId ? decodeURIComponent(cardId[1]) : null,p_name:body.name,p_last_four:body.lastFour,p_limit_cents:body.limitCents,p_closing_day:body.closingDay,p_due_day:body.dueDay,p_key:idempotencyKey(options)}) as T

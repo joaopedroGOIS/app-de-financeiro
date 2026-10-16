@@ -1,0 +1,79 @@
+{
+  "status": "pending_rules",
+  "goals": {
+    "milestones": [
+      {
+        "milestone": 10,
+        "xp": 20,
+        "graninha": 15
+      },
+      {
+        "milestone": 25,
+        "xp": 30,
+        "graninha": 25
+      },
+      {
+        "milestone": 50,
+        "xp": 50,
+        "graninha": 40
+      },
+      {
+        "milestone": 75,
+        "xp": 75,
+        "graninha": 60
+      },
+      {
+        "milestone": 100,
+        "xp": 150,
+        "graninha": 150
+      }
+    ],
+    "pending": [
+      "evidence_of_real_progress",
+      "anti_recreation_policy"
+    ]
+  },
+  "dreams": {
+    "base_xp": 500,
+    "multipliers": {
+      "fácil": 1,
+      "moderada": 1.5,
+      "difícil": 2,
+      "muito_difícil": 3,
+      "lendária": 5
+    },
+    "pending": [
+      "milestone_distribution",
+      "graninha",
+      "evidence_of_real_progress"
+    ]
+  },
+  "missions": {
+    "easy": {
+      "xp": 10,
+      "graninha": 10
+    },
+    "medium": {
+      "xp": 25,
+      "graninha": 25
+    },
+    "hard": {
+      "xp": 60,
+      "graninha": 50
+    },
+    "very_hard": {
+      "xp": 100,
+      "graninha": 100
+    },
+    "pending": [
+      "completion_conditions",
+      "period_limits"
+    ]
+  },
+  "daily_saving": {
+    "xp": 5,
+    "pending": [
+      "evidence_of_real_saving"
+    ]
+  }
+}

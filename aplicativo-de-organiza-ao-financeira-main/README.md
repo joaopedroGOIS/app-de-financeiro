@@ -32,7 +32,7 @@ npm run build  # checagem TypeScript e build do frontend
 
 ## Limites desta reconstrução
 
-O documento não especifica as quantias oficiais de XP/Graninha, curva de níveis, limites de Classe Financeira, definições das 30 conquistas/10 selos/5 troféus ou regras econômicas de missões e hábitos. **Não inventamos esses valores**: a interface mostra XP 0, nível 1 e Graninha 0 para novas contas e não concede recompensas ainda. A barra de progresso de nível só é desenhada se o servidor informar o limite do próximo nível (`progress.nextLevelXp`, hoje sempre `null`); enquanto a curva não existir, a interface diz isso explicitamente em vez de estimar uma porcentagem. Classe Financeira aparece como aguardando critérios. Eventos ficam pendentes, sem processamento econômico automático.
+A economia aprovada em 15/10/2026 agora é processada no Supabase, com ledger imutável, idempotência, curva dos níveis 1–100 e classes pela reserva elegível. Consulte [Gamificação: regras, arquitetura, testes e pendências](./GAMIFICATION_RELEASE.md). Metas, Sonhos, missões e economia diária ainda sem critérios completos permanecem desativados.
 
 Ainda não há integração bancária, sincronização com Base44/Supabase, recuperação de senha, painel administrativo, histórico de classes e snapshots, motor de hábitos/missões/conquistas, inventário, loja, Tio Gansinhas animado, trilha completa de auditoria ou proteção de produção contra abuso (rate limiting, proteção contra fraude, operação multi-instância). Não use esta versão como serviço financeiro de produção sem essas etapas e revisão de segurança. O banco SQLite local precisa de backup próprio; o CSV exporta movimentações, não é um backup completo.
 
