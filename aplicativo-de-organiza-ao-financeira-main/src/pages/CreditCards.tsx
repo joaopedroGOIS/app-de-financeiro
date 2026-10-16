@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CsvImport } from '../CsvImportDialog'
 import type { FormEvent } from 'react'
 import { Archive, Check, CreditCard as CreditCardIcon, Plus, Pencil, ShoppingBag, Wallet } from 'lucide-react'
 import { api, currency, dateToday, displayDate, inputMoney, json, monthName, monthShift, percent, toCents } from '../data'
@@ -120,6 +121,7 @@ export function CreditCardsPage({ state, onUpdated, toast, month, setMonth }: { 
     {cards.length ? <>
       <div className="credit-card-tabs" role="group" aria-label="Selecionar cartão">{cards.map(c=><button type="button" key={c.id} className={`credit-card-tab ${selected?.id===c.id?'active':''}`} aria-pressed={selected?.id===c.id} onClick={()=>setSelectedId(c.id)}><CreditCardIcon size={18}/><span>{c.name}{c.lastFour ? ` · ${c.lastFour}`:''}{c.archivedAt?' · Arquivado':''}</span></button>)}</div>
       {selected && <>
+        {!selected.archivedAt && <CsvImport state={state} initialCardId={selected.id} onUpdated={onUpdated}/>}
         <Card className="credit-card-overview"><div className="section-heading"><div><h2>{selected.name}</h2><p>{selected.lastFour ? `Final ${selected.lastFour} · `:''}Fecha dia {selected.closingDay} · vence dia {selected.dueDay}</p></div>{!selected.archivedAt && <div className="credit-card-actions"><Button variant="ghost" size="sm" onClick={()=>open('edit')}><Pencil size={15}/>Editar</Button><Button variant="ghost" size="sm" onClick={()=>setConfirm({path:`/credit-cards/${selected.id}`,message:'Arquivar este cartão? É necessário quitar todas as faturas. O histórico será preservado.'})}><Archive size={15}/>Arquivar</Button></div>}</div>
           <div className="mini-stats"><div className="mini-stat"><span>Limite total</span><strong>{currency(selected.limitCents)}</strong></div><div className="mini-stat"><span>Comprometido, incluindo parcelas futuras</span><strong>{currency(outstanding)}</strong></div><div className="mini-stat"><span>Limite disponível</span><strong className="positive">{currency(Math.max(0,selected.limitCents-outstanding))}</strong></div></div>
           <ProgressBar value={percent(outstanding,selected.limitCents)} label="Limite comprometido" tone={outstanding>=selected.limitCents?'danger':''}/>
