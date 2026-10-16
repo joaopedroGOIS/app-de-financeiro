@@ -11,9 +11,11 @@ export type Goal = { id: string; title: string; kind: 'meta' | 'sonho'; targetCe
 /** `nextLevelXp` é `null` enquanto a curva oficial de XP não estiver configurada no servidor. */
 export type Progress = { xp_total: number; level: number; graninha_balance: number; nextLevelXp: number | null; currentLevelXp?: number | null; curveVersion?: string | null }
 export type Reward = { id: string; event_id: string; reward_type: string; amount: number; reason_code: string; config_version: string; created_at: string; metadata: { kind?: string; milestone?: string }; adjustment_of?: string | null }
-export type Gamification = { progress: Progress; streak: number; rewards: Reward[]; milestones: { goal_id: string; title: string; milestone: number; created_at: string }[]; behaviors: { code: string; kind: string; period_start: string }[]; streakMilestones: { milestone: number; cycle_start: string }[]; configVersion: string | null; pending: number; awaitingConfig: number; unavailable?: boolean }
+export type Gamification = { progress: Progress; streak: number; rewards: Reward[]; milestones: { goal_id: string; title: string; milestone: number; created_at: string }[]; behaviors: { code: string; kind: string; period_start: string }[]; streakMilestones: { milestone: number; cycle_start: string }[]; configVersion: string | null; pending: number; awaitingConfig: number; awaitingDifficulty?: number; unavailable?: boolean }
 export type FinancialClass = { name: string; reserveCents: number; version: string; history: {id:string;class_code:string;reserve_cents:number;created_at:string}[] }
-export type State = { financialClass?: FinancialClass; gamification?: Gamification; creditCards?: CardState; creditCardsEnabled?: boolean; user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: string | null } }
+export type Mission = {code:string;name:string;difficulty:string;description:string;days:number;reviews:number;requiredDays:number;requiredReviews:number;start:string;end:string;xp:number;graninha:number;period:string;status:'available'|'in_progress'|'completed'|'expired';configVersion:string}
+export type Missions = {current:Mission[];previous:Mission[];timezone:string}
+export type State = { missions?: Missions; financialClass?: FinancialClass; gamification?: Gamification; creditCards?: CardState; creditCardsEnabled?: boolean; user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: string | null } }
 export type Analysis = { status: 'insufficient' | 'expired' | 'ready'; difficulty?: string; confidence: 'baixa' | 'alta'; monthsRecorded: number; remainingCents?: number; capacityCents?: number; estimatedMonths?: number; needMonthlyCents?: number; monthsLeft?: number; effortIndex?: number; formulaVersion: string }
 
 /** `token` aponta para os pares `--cat-*` definidos em `styles/tokens.css`, um por tema. */
@@ -172,6 +174,8 @@ async function getState(): Promise<State> {
   try { financialClass = await rest<FinancialClass>('rpc/financial_class_state','POST','',{}) } catch { /* Nova consulta tenta novamente. */ }
   let gamification: Gamification | undefined
   try { gamification = await rest<Gamification>('rpc/gamification_state','POST','',{}) } catch { /* Permite atualizar o banco antes/depois do frontend sem bloquear finanças. */ }
+  let missions: Missions | undefined
+  try { missions=await rest<Missions>('rpc/missions_state','POST','',{}) } catch { /* Disponível após a migration de missões. */ }
   const [user, profiles, accounts, entries, archived, categories, subcategories, assets, goals, contributions, milestones, progress, preferences, creditCards] = await Promise.all([
     authRequest('user', undefined, true),
     rest('profiles','GET',query({select:'id,name'})),
@@ -194,7 +198,7 @@ async function getState(): Promise<State> {
   const contributionsByGoal = rows<any>(contributions), milestoneRows = rows<any>(milestones)
   const progressRow = one<any>(progress) ?? {}
   return {
-    gamification, financialClass,
+    gamification, financialClass, missions,
     creditCards: creditCards.state, creditCardsEnabled: creditCards.enabled,
     user: { id: user.id, name: profile.name || user.user_metadata?.name || '', email: user.email || '' },
     accounts: accountRows.map(a => ({ id:a.id,name:a.name,type:a.type,openingCents:Number(a.opening_cents),isReserve:a.is_reserve,description:a.description,balanceCents:stats.balances.find(b=>b.id===a.id)?.balanceCents ?? 0 })),
@@ -339,7 +343,7 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   }
   if (assetId && method==='DELETE') { await rest('assets','DELETE',query({id:`eq.${decodeURIComponent(assetId[1])}`})); return {ok:true} as T }
   const contribution=path.match(/^\/goals\/([^/]+)\/contributions$/)
-  if (contribution && method==='POST') return await rest('rpc/create_contribution','POST','',{p_goal_id:decodeURIComponent(contribution[1]),p_amount_cents:body.amountCents,p_date:body.date,p_note:body.note,p_idempotency_key:idempotencyKey(options)}) as T
+  if (contribution && method==='POST') return await rest('rpc/create_confirmed_contribution','POST','',{p_goal_id:decodeURIComponent(contribution[1]),p_amount_cents:body.amountCents,p_date:body.date,p_note:body.note,p_idempotency_key:idempotencyKey(options),p_confirmed:body.economyConfirmed===true}) as T
   const goalId=path.match(/^\/goals\/([^/]+)$/)
   if (path==='/goals' && method==='POST') {
     const user=await authRequest('user',undefined,true), result=await rest<any[]>('goals','POST','',{user_id:user.id,title:body.title,kind:body.kind,target_cents:body.targetCents,icon:body.icon,deadline:body.deadline})

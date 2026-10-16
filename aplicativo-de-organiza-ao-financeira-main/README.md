@@ -32,7 +32,7 @@ npm run build  # checagem TypeScript e build do frontend
 
 ## Limites desta reconstrução
 
-A economia aprovada em 15/10/2026 agora é processada no Supabase, com ledger imutável, idempotência, curva dos níveis 1–100 e classes pela reserva elegível. Consulte [Gamificação: regras, arquitetura, testes e pendências](./GAMIFICATION_RELEASE.md). Metas, Sonhos, missões e economia diária ainda sem critérios completos permanecem desativados.
+A economia aprovada em 15/10/2026 agora é processada no Supabase, com ledger imutável, idempotência, curva dos níveis 1–100 e classes pela reserva elegível. Consulte [Gamificação: regras, arquitetura, testes e pendências](./GAMIFICATION_RELEASE.md). A extensão de [missões, Metas, Sonhos e economia diária](./MISSIONS_RELEASE.md) usa as definições e a confirmação manual aprovadas em 16/10/2026.
 
 Ainda não há integração bancária, sincronização com Base44/Supabase, recuperação de senha, painel administrativo, histórico de classes e snapshots, motor de hábitos/missões/conquistas, inventário, loja, Tio Gansinhas animado, trilha completa de auditoria ou proteção de produção contra abuso (rate limiting, proteção contra fraude, operação multi-instância). Não use esta versão como serviço financeiro de produção sem essas etapas e revisão de segurança. O banco SQLite local precisa de backup próprio; o CSV exporta movimentações, não é um backup completo.
 

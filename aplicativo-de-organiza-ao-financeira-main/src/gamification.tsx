@@ -13,6 +13,9 @@ export function rewardReason(reward: Reward) {
   if (reward.adjustment_of) return 'Ajuste auditado de recompensa'
   const habit=({daily_record:'Registro financeiro diário',no_expense_day:'Dia sem gastos',weekly_review:'Fechamento semanal',monthly_review:'Revisão mensal'} as Record<string,string>)[reward.reason_code]
   if(habit) return habit
+  if(reward.reason_code==='daily_saving') return 'Economia diária confirmada'
+  const mission=({mission_first_step:'Primeiro Passo',mission_organized_week:'Semana Organizada',mission_true_control:'Controle de Verdade',mission_control_master:'Mestre do Controle'} as Record<string,string>)[reward.reason_code]
+  if(mission) return `Missão: ${mission}`
   switch(reward.metadata?.kind) {
     case 'habit': return 'Hábito concluído'
     case 'mission': return 'Missão concluída'
@@ -34,6 +37,7 @@ export function RewardHistory({ game, limit=10 }: { game?: Gamification; limit?:
       : <>
         {!game.configVersion && <p className="card-description">As regras de recompensas estão em preparação. Seu histórico financeiro está preservado.</p>}
         {game.pending>0 && <p className="info-note" role="status">Há ações aguardando processamento. As recompensas aparecerão após a confirmação.</p>}
+        {!!game.awaitingDifficulty && <p className="card-description">Há marcos de Sonhos aguardando histórico suficiente para calcular a dificuldade. Eles ficam registrados para processamento posterior.</p>}
         {game.rewards.length ? <ul className="reward-history">{game.rewards.slice(0,limit).map(reward=><li key={reward.id}>
           <span className="reward-history-icon">{reward.reward_type==='xp'?<Sparkles size={18}/>:<Coins size={18}/>}</span>
           <div><strong>{rewardReason(reward)}</strong><small>{new Date(reward.created_at).toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo'})} · {reward.config_version}</small></div>
