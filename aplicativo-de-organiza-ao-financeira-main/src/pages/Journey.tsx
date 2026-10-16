@@ -3,6 +3,7 @@ import { Badge, Card, CardHeader, EmptyState, ProgressRing } from '../ui'
 import type { PageProps } from './shared'
 import { levelProgress, RewardHistory } from '../gamification'
 import { FinancialRoutines } from '../FinancialRoutines'
+import { MissionsSection } from '../Missions'
 
 /* ==========================================================================
    Jornada — camada de jogo. Só exibe o que o servidor realmente registra:
@@ -52,6 +53,7 @@ export function JourneyPage({ state, go, onUpdated }: PageProps & { onUpdated?:(
         </div>
       </div>
 
+      <MissionsSection missions={state.missions}/>
       <div className="journey-details">
         {onUpdated && <FinancialRoutines state={state} onUpdated={onUpdated}/>}
         <RewardHistory game={state.gamification} limit={50}/>

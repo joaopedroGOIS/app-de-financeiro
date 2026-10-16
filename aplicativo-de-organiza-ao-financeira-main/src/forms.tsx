@@ -235,10 +235,11 @@ export function ContributionForm({ goal, onSubmit, error }: { goal: Goal; onSubm
   const [date, setDate] = useState(dateToday())
   const [note, setNote] = useState('')
   const [pending, setPending] = useState(false)
+  const [economyConfirmed,setEconomyConfirmed] = useState(false)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setPending(true)
-    await onSubmit({ amountCents: toCents(value), date, note })
+    await onSubmit({ amountCents: toCents(value), date, note, economyConfirmed })
     setPending(false)
   }
   return (
@@ -256,6 +257,8 @@ export function ContributionForm({ goal, onSubmit, error }: { goal: Goal; onSubm
         <input maxLength={200} value={note} onChange={event => setNote(event.target.value)} />
       </label>
       <p className="form-description">Este registro não movimenta contas nem usa automaticamente a Reserva. Se transferiu dinheiro de verdade, registre também a movimentação na conta correspondente.</p>
+      <label className="check-field"><input type="checkbox" required checked={economyConfirmed} onChange={e=>setEconomyConfirmed(e.target.checked)}/><span>Confirmo que este aporte representa economia real e não foi contabilizado em outro objetivo.</span></label>
+      <p className="form-description">A economia diária concede 5 XP uma vez por dia, independentemente do valor. Os marcos do objetivo seguem sua tabela de recompensas.</p>
       <FormError error={error} />
       <Button type="submit" wide disabled={pending}>
         <Check size={17} />{pending ? 'Salvando...' : 'Registrar progresso'}
