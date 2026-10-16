@@ -18,6 +18,7 @@ try {
   for (const file of ['20261013233000_initial_schema.sql','20261014000000_user_categories.sql']) await db.exec(await readFile(new URL(`../../supabase/migrations/${file}`,import.meta.url),'utf8'))
   await db.exec(`grant select,insert,update,delete on all tables in schema public to authenticated;`)
   await db.exec(await readFile(new URL('../../supabase/migrations/20261015000000_credit_cards.sql',import.meta.url),'utf8'))
+  await db.exec(await readFile(new URL('../../supabase/migrations/20261015010000_card_purchase_interest.sql',import.meta.url),'utf8'))
   await db.query('insert into auth.users(id) values($1),($2)',[u1,u2])
   await user(u1)
   const account=await scalar(`insert into public.accounts(user_id,name,type) values(auth.uid(),'Conta','corrente') returning id`)
@@ -39,6 +40,21 @@ try {
   })
   await check('categoria não pertencente ao usuário é rejeitada',async()=>{
     await assert.rejects(call('create_card_purchase',[card,'Categoria','Inexistente','',100,'2026-10-10',1,null,'','bad-category-001']),/categoria/)
+  })
+  await check('juros são persistidos e divididos uma única vez nas parcelas',async()=>{
+    const args=[card,'Compra com juros','Compras','',10000,2000,'2026-10-10',6,null,'','interest-buy-0001']
+    const first=await call('create_card_purchase_with_interest',args)
+    const changed=[...args];changed[5]=3000
+    assert.equal((await call('create_card_purchase_with_interest',changed)).id,first.id)
+    const state=await snapshot(), purchase=state.purchases.find(p=>p.id===first.id)
+    assert.equal(Number(purchase.amount_cents),12000)
+    assert.equal(Number(purchase.interest_cents),2000)
+    assert.deepEqual(state.installments.filter(i=>i.purchase_id===first.id).map(i=>Number(i.amount_cents)),[2000,2000,2000,2000,2000,2000])
+    await call('archive_card_purchase',[first.id])
+  })
+  await check('juros negativos e total financiado acima do limite são rejeitados',async()=>{
+    await assert.rejects(call('create_card_purchase_with_interest',[card,'Juros inválidos','Compras','',1000,-1,'2026-10-10',1,null,'','negative-interest-01']),/juros/)
+    await assert.rejects(call('create_card_purchase_with_interest',[card,'Limite','Compras','',80000,20000,'2026-10-10',1,null,'','interest-limit-001']),/limite/)
   })
   await check('pagamento parcial é idempotente e não cria segunda despesa bancária',async()=>{
     const args=[card,'2026-10-01',account,2000,'2026-10-15','','pay-key-00001']
