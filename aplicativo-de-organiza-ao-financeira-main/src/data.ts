@@ -229,6 +229,7 @@ async function difficulty(goalId: string): Promise<Analysis> {
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   ensureConfig()
   const method=(options.method||'GET').toUpperCase(), body=parseBody(options)
+  if(path==='/imports/csv' && method==='POST') return await rest('rpc/import_csv','POST','',{p_destination:body.destination,p_destination_id:body.destinationId,p_rows:body.rows,p_commit:body.commit,p_first_month:body.firstMonth?`${body.firstMonth}-01`:null}) as T
   if (path==='/auth/register') {
     const data=await authRequest('signup',{email:body.email,password:body.password,data:{name:body.name}})
     if (!data.session?.access_token) throw new ApiError('Conta criada. Confirme seu e-mail e depois entre no Granaê.',401,'EMAIL_CONFIRMATION_REQUIRED')

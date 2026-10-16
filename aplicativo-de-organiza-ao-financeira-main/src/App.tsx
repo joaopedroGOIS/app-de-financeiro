@@ -13,6 +13,7 @@ import { AccountsPage } from './pages/Accounts'
 import { CreditCardsPage } from './pages/CreditCards'
 import { DashboardPage } from './pages/Dashboard'
 import { EntriesPage } from './pages/Entries'
+import { CsvImport } from './CsvImportDialog'
 import type { EntryFilter } from './pages/Entries'
 import { GoalsPage } from './pages/Goals'
 import { JourneyPage } from './pages/Journey'
@@ -457,11 +458,12 @@ export default function App() {
           </>}
 
           {page === 'entries' && <>
+            <CsvImport state={state} onUpdated={refresh}/>
             <PageHeading
               eyebrow="SEU HISTÓRICO"
               title="Movimentações"
               description="Receitas, despesas e ajustes organizados com clareza."
-              action={<Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button>}
+              action={<div className="dashboard-page-actions"><CsvImport state={state} onUpdated={refresh}/><Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button></div>}
             />
             <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={monthPicker} />
           </>}
