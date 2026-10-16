@@ -1,3 +1,4 @@
+import { AdventureArt } from './AdventureArt'
 import { useState } from 'react'
 import { FinancialReports, ReportDetails } from './FinancialReports'
 import { Activity, ArrowDownLeft, ArrowUpRight, Award, Banknote, BookOpen, CalendarClock, CarFront, Clapperboard, Coins, Flame, Gem, HeartPulse, House, Landmark, Pencil, Plus, Repeat2, Shapes, ShieldCheck, ShoppingBag, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Utensils, Wallet } from 'lucide-react'
@@ -92,6 +93,12 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
         </div>
       </div>
 
+      <nav className="adventure-actions" aria-label="Atalhos financeiros">
+        <button type="button" onClick={openEntry}><span><Plus size={22} /></span><div><strong>Registrar movimentação</strong><small>Receitas e despesas</small></div></button>
+        <button type="button" onClick={() => go('accounts')}><span><Wallet size={22} /></span><div><strong>Minhas contas</strong><small>Seus saldos em um lugar</small></div></button>
+        <button type="button" onClick={() => go('goals')}><span><Target size={22} /></span><div><strong>Meus objetivos</strong><small>Construa seu próximo passo</small></div></button>
+        <button type="button" onClick={() => go('cards')}><span><CalendarClock size={22} /></span><div><strong>Cartões e faturas</strong><small>Acompanhe seus compromissos</small></div></button>
+      </nav>
       <div className="dashboard-overview">
         <Card className="net-worth-card dashboard-net-worth">
           <div className="net-worth-heading">
@@ -102,6 +109,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
             </div>
             <span className="net-worth-icon"><Gem size={21} /></span>
           </div>
+          <AdventureArt landscape />
           <div className="net-worth-breakdown">
             <div>
               <span><Wallet size={14} />Saldo total das contas</span>
@@ -122,6 +130,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
         </Card>
 
         <div className="level-panel dashboard-level-panel">
+          <AdventureArt />
           <div className="level-head">
             <span className="level-badge" aria-label={`Nível ${state.progress.level}`}><Gem size={18} aria-hidden="true" /><strong>{state.progress.level}</strong></span>
             <span className="level-head-text">
@@ -176,6 +185,12 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
 
       <div className="below-overview-monthly-summary">{monthlySummary}</div>
 
+      <nav className="adventure-trail" aria-label="Sua jornada financeira">
+        <div><span className="hero-kicker">SUA JORNADA</span><h3>Um passo de cada vez.</h3><p>Organize o presente e acompanhe suas conquistas.</p></div>
+        <button type="button" onClick={() => go('entries')}><span><BookOpen size={22} /></span>Organizar registros</button>
+        <button type="button" onClick={() => go('goals')}><span><Target size={22} /></span>Construir objetivos</button>
+        <button type="button" onClick={() => go('journey')}><span><Award size={22} /></span>Ver evolução</button>
+      </nav>
       <div className="dashboard-grid">
         <FinancialReports key={month} entries={state.entries} month={month} />
 
