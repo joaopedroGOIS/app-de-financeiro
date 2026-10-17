@@ -1,3 +1,4 @@
+import { GooseCompanion } from '../components/GooseCompanion'
 import { Award, CheckCircle2, Coins, Flame, Gem, LockKeyhole, Medal, ShieldCheck, Sparkles, Target, Zap } from 'lucide-react'
 import { Badge, Card, CardHeader, EmptyState, ProgressRing } from '../ui'
 import type { PageProps } from './shared'
@@ -50,6 +51,7 @@ export function JourneyPage({ state, go }: PageProps) {
         </div>
       </div>
 
+      <GooseCompanion />
       <div className="journey-details">
         <Card>
           <CardHeader title="Conquistas reais" description="Marcos de progresso dos seus objetivos" icon={Medal} />

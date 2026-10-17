@@ -52,3 +52,15 @@
  .adventure-crystal{width:104px;height:114px}.adventure-landscape{height:115px}.adventure-trail{padding:17px;gap:12px}.adventure-trail button{font-size:10px;min-width:0}.adventure-trail button>span{width:42px;height:48px}
  .dashboard-overview .dashboard-level-panel{padding:20px}
 }
+/* Goose companion: rendering is decorative and independent of the economy. */
+.goose-companion{display:flex;align-items:center;gap:28px;padding:20px 28px;margin:22px 0;border:1px solid var(--border);border-radius:22px;background:radial-gradient(ellipse at 15% 70%,var(--primary-soft-strong),transparent 65%),var(--surface);overflow:hidden}
+.goose-stage{position:relative;width:250px;height:280px;flex:0 0 250px;border-radius:20px;outline-offset:3px}
+.goose-stage canvas{display:block;position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.goose-stage:focus-visible{outline:2px solid var(--focus-ring)}
+.goose-fallback{width:100%;height:100%;display:block}
+.goose-stage[data-graphics=ready] .goose-fallback{visibility:hidden}
+.goose-stage[data-graphics=fallback] canvas{visibility:hidden}
+.goose-copy{max-width:440px}.goose-kicker{display:flex;gap:7px;align-items:center;color:var(--primary-text);font-size:11px;font-weight:800;letter-spacing:1.2px}
+.goose-copy h3{font:800 24px var(--font-display);margin:12px 0}.goose-copy p{color:var(--text-secondary);font-size:14px;line-height:1.6}.goose-copy small{display:block;color:var(--text-muted);font-size:12px;line-height:1.6;margin-top:12px}
+.dashboard-overview .dashboard-level-panel{justify-content:center;gap:24px}
+@media(max-width:760px){.goose-companion{gap:5px;padding:15px;flex-direction:column;text-align:center}.goose-stage{width:220px;height:240px;flex-basis:240px}.goose-copy h3{font-size:21px}.goose-kicker{justify-content:center}.goose-copy{padding-bottom:14px}}
