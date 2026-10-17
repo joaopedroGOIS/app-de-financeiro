@@ -25,3 +25,15 @@ test('editing preserves a trailing decimal separator and rejects excessive preci
   assert.equal(normalizeMoneyInput(''), '')
   for (const value of ['1,234', '1e6', '12,50,20', 'abc', 'Infinity']) assert.equal(normalizeMoneyInput(value), null)
 })
+test('typing through generated thousands separators can reach millions and billions', () => {
+  let canonical = ''
+  for (const digit of '1234567890') {
+    const next = normalizeMoneyInput(displayMoneyInput(canonical) + digit, false)
+    assert.notEqual(next, null, 'typing must not mistake grouping dots for decimal points')
+    canonical = next!
+  }
+  assert.equal(displayMoneyInput(canonical), '1.234.567.890')
+  assert.equal(toCents(canonical), 123456789000)
+  canonical = normalizeMoneyInput(displayMoneyInput(canonical) + ',50', false)!
+  assert.equal(displayMoneyInput(canonical), '1.234.567.890,50')
+})

@@ -41,12 +41,23 @@ export function MoneyInput({ value, onValueChange, min, max, onBlur, ...props }:
   return <input {...props} ref={input} type="text" inputMode="decimal" placeholder={props.placeholder ?? '0,00'} value={displayMoneyInput(value)}
     onChange={event => {
       const element = event.currentTarget
-      const next = normalizeMoneyInput(element.value)
+      const next = normalizeMoneyInput(element.value, false)
       if (next === null) return
       const position = element.selectionStart ?? element.value.length
       const prefix = element.value.slice(0, position)
-      const decimalPoint = !element.value.includes(',') && next.includes('.') && element.value.lastIndexOf('.') < position
-      cursor.current = (prefix.match(/[\d,-]/g) ?? []).length + (decimalPoint ? 1 : 0)
+      const decimalPoint = false
+      cursor.current = (prefix.match(/[\d,-]/g) ?? []).length
+      onValueChange(next)
+    }}
+    onPaste={event => {
+      const element = event.currentTarget
+      const start = element.selectionStart ?? 0
+      const end = element.selectionEnd ?? element.value.length
+      const raw = element.value.slice(0, start) + event.clipboardData.getData('text') + element.value.slice(end)
+      const next = normalizeMoneyInput(raw, start === 0 && end === element.value.length)
+      event.preventDefault()
+      if (next === null) return
+      cursor.current = null
       onValueChange(next)
     }}
     onBlur={event => {
