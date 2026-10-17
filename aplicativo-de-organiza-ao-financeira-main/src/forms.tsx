@@ -1,3 +1,4 @@
+import { MoneyInput } from './components/MoneyInput'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Check, CircleAlert } from 'lucide-react'
@@ -55,7 +56,7 @@ export function EntryForm({ initial, accounts, categories: userCategories, subca
       </label>
       <div className="form-row">
         <label>Valor (R$)
-          <input required type="number" inputMode="decimal" min="0.01" max="1000000000" step="0.01" placeholder="0,00" value={value} onChange={event => setValue(event.target.value)} />
+          <MoneyInput required min="0.01" max="1000000000" placeholder="0,00" value={value} onValueChange={setValue} />
         </label>
         <label>Data
           <input required type="date" max={dateToday()} value={date} onChange={event => setDate(event.target.value)} />
@@ -130,7 +131,7 @@ export function AccountForm({ initial, onSubmit, error }: FormProps<Account>) {
         </label>
         {!initial && (
           <label>Saldo inicial (R$)
-            <input required type="number" step="0.01" value={opening} onChange={event => setOpening(event.target.value)} />
+            <MoneyInput required value={opening} onValueChange={setOpening} />
           </label>
         )}
       </div>
@@ -171,7 +172,7 @@ export function AssetForm({ initial, onSubmit, error }: FormProps<Asset>) {
         <input required maxLength={70} autoFocus placeholder={kind === 'asset' ? 'Ex.: Veículo' : 'Ex.: Empréstimo'} value={name} onChange={event => setName(event.target.value)} />
       </label>
       <label>Valor (R$)
-        <input required type="number" min="0.01" step="0.01" value={value} onChange={event => setValue(event.target.value)} />
+        <MoneyInput required min="0.01" value={value} onValueChange={setValue} />
       </label>
       <label>Observação <span className="optional">(opcional)</span>
         <input maxLength={200} value={note} onChange={event => setNote(event.target.value)} />
@@ -216,7 +217,7 @@ export function GoalForm({ initial, onSubmit, error }: FormProps<Goal>) {
       </div>
       <div className="form-row">
         <label>Valor desejado (R$)
-          <input required type="number" min="0.01" step="0.01" value={target} onChange={event => setTarget(event.target.value)} />
+          <MoneyInput required min="0.01" value={target} onValueChange={setTarget} />
         </label>
         <label>Prazo <span className="optional">(opcional)</span>
           <input type="date" value={deadline} onChange={event => setDeadline(event.target.value)} />
@@ -247,7 +248,7 @@ export function ContributionForm({ goal, onSubmit, error }: { goal: Goal; onSubm
       <p className="form-description">Ainda faltam <strong>{currency(Math.max(0, goal.targetCents - goal.savedCents))}</strong> para este objetivo.</p>
       <div className="form-row">
         <label>Valor do progresso (R$)
-          <input required type="number" min="0.01" max={inputMoney(goal.targetCents - goal.savedCents)} step="0.01" autoFocus value={value} onChange={event => setValue(event.target.value)} />
+          <MoneyInput required min="0.01" max={inputMoney(goal.targetCents - goal.savedCents)} autoFocus value={value} onValueChange={setValue} />
         </label>
         <label>Data
           <input required type="date" max={dateToday()} value={date} onChange={event => setDate(event.target.value)} />

@@ -1,3 +1,4 @@
+import { GooseCompanion } from '../components/GooseCompanion'
 import { Award, CheckCircle2, Coins, Flame, Gem, LockKeyhole, Medal, ShieldCheck, Sparkles, Target, Zap } from 'lucide-react'
 import { Badge, Card, CardHeader, EmptyState, ProgressRing } from '../ui'
 import type { PageProps } from './shared'
@@ -53,6 +54,7 @@ export function JourneyPage({ state, go, onUpdated }: PageProps & { onUpdated?:(
         </div>
       </div>
 
+      <GooseCompanion />
       <MissionsSection missions={state.missions}/>
       <div className="journey-details">
         {onUpdated && <FinancialRoutines state={state} onUpdated={onUpdated}/>}

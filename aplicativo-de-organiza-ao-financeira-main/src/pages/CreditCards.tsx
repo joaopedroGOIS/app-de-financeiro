@@ -1,3 +1,4 @@
+import { MoneyInput } from '../components/MoneyInput'
 import { useState } from 'react'
 import { CsvImport } from '../CsvImportDialog'
 import type { FormEvent } from 'react'
@@ -22,7 +23,7 @@ export function CreditCardForm({ initial, error, onSubmit }: SaveForm & { initia
   return <form className="form" onSubmit={submit}>
     <label>Nome do cartão<input autoFocus required maxLength={60} placeholder="Ex.: Meu cartão principal" value={name} onChange={e=>setName(e.target.value)} /></label>
     <div className="form-row">
-      <label>Limite total (R$)<input type="number" inputMode="decimal" min="0.01" max="1000000000" step="0.01" required value={limit} onChange={e=>setLimit(e.target.value)} /></label>
+      <label>Limite total (R$)<MoneyInput min="0.01" max="1000000000" required value={limit} onValueChange={setLimit} /></label>
       <label>Últimos 4 dígitos (opcional)<input inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="1234" value={lastFour} onChange={e=>setLastFour(e.target.value.replace(/\D/g,''))} /></label>
     </div>
     <div className="form-row">
@@ -54,7 +55,7 @@ export function CardPurchaseForm({ card, availableCents, categories, subcategori
     <p className="form-description">{card.name} · Limite disponível: <strong>{currency(availableCents)}</strong>. O valor total da compra compromete o limite.</p>
     <label>Descrição<input autoFocus required maxLength={80} placeholder="Ex.: Compra no mercado" value={title} onChange={e=>setTitle(e.target.value)} /></label>
     <div className="form-row">
-      <label>Valor original, sem juros (R$)<input type="number" inputMode="decimal" min="0.01" max={inputMoney(availableCents)} step="0.01" required value={value} onChange={e=>setValue(e.target.value)} /></label>
+      <label>Valor original, sem juros (R$)<MoneyInput min="0.01" max={inputMoney(availableCents)} required value={value} onValueChange={setValue} /></label>
       <label>Data da compra<input type="date" required max={dateToday()} value={date} onChange={e=>{setDate(e.target.value);setFirstMonth('')}} /></label>
     </div>
     <label className="check-field"><input type="checkbox" checked={hasInterest} onChange={e=>setHasInterest(e.target.checked)}/><span>Esta compra tem juros</span></label>
@@ -62,7 +63,7 @@ export function CardPurchaseForm({ card, availableCents, categories, subcategori
       <label>Informar juros em<select value={interestMode} onChange={e=>setInterestMode(e.target.value)}><option value="amount">Valor em reais (R$)</option><option value="percentage">Porcentagem total (%)</option></select></label>
       {interestMode==='percentage'
         ? <label>Juros totais da compra (%)<input type="number" inputMode="decimal" min="0.01" step="0.01" required placeholder="Ex.: 20" value={interestRate} onChange={e=>setInterestRate(e.target.value)}/><small className="form-description">Percentual total sobre o valor original, aplicado uma única vez. Ex.: 20% de R$ 1.000,00 são R$ 200,00 de juros. Não é uma taxa mensal.</small></label>
-        : <label>Juros totais da compra (R$)<input type="number" inputMode="decimal" min="0.01" max={inputMoney(availableCents)} step="0.01" required placeholder="Ex.: 200,00" value={interest} onChange={e=>setInterest(e.target.value)}/><small className="form-description">Informe o valor total dos juros em reais. Ele será somado uma única vez ao valor original e dividido nas parcelas.</small></label>}
+        : <label>Juros totais da compra (R$)<MoneyInput min="0.01" max={inputMoney(availableCents)} required placeholder="Ex.: 200,00" value={interest} onValueChange={setInterest}/><small className="form-description">Informe o valor total dos juros em reais. Ele será somado uma única vez ao valor original e dividido nas parcelas.</small></label>}
     </>}
     {principal>0 && <div className="info-note"><ShoppingBag size={18}/><p>Valor original: <strong>{currency(principal)}</strong><br/>Juros totais: <strong>{currency(interestCents)}</strong><br/>Total a pagar: <strong>{currency(total)}</strong></p></div>}
     {total>availableCents && <InlineError>O total com juros ultrapassa o limite disponível do cartão.</InlineError>}
@@ -91,7 +92,7 @@ export function CardPaymentForm({ bill, accounts, error, onSubmit }: SaveForm & 
     <p className="form-description">Registre um pagamento que você já realizou. Saldo da fatura: <strong>{currency(bill.remainingCents)}</strong>. O valor sairá do saldo da conta selecionada e liberará limite no cartão.</p>
     <label>Conta de origem<select required value={accountId} onChange={e=>setAccountId(e.target.value)}>{accounts.map(a=><option key={a.id} value={a.id}>{a.name} · {currency(a.balanceCents)}</option>)}</select></label>
     {!accounts.length && <InlineError>Adicione uma conta em Minhas contas para registrar o pagamento.</InlineError>}
-    <div className="form-row"><label>Valor pago (R$)<input type="number" min="0.01" max={inputMoney(bill.remainingCents)} step="0.01" required value={value} onChange={e=>setValue(e.target.value)} /></label><label>Data do pagamento<input type="date" max={dateToday()} required value={date} onChange={e=>setDate(e.target.value)} /></label></div>
+    <div className="form-row"><label>Valor pago (R$)<MoneyInput min="0.01" max={inputMoney(bill.remainingCents)} required value={value} onValueChange={setValue} /></label><label>Data do pagamento<input type="date" max={dateToday()} required value={date} onChange={e=>setDate(e.target.value)} /></label></div>
     <label>Observação (opcional)<input maxLength={300} value={note} onChange={e=>setNote(e.target.value)} /></label>
     <p className="form-description">Pagamentos parciais ficam registrados; o restante continua em aberto. Juros e encargos devem ser registrados como compras separadas.</p>
     {error && <InlineError>{error}</InlineError>}

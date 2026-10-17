@@ -178,3 +178,20 @@ test('SQLite preserva dados depois de reabrir; ledger bloqueia alteração hist�
     second.close()
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
+
+test('registra valor de milhões em centavos sem truncar no milhar', async () => {
+  const { db, server, request } = await setup()
+  try {
+    const user = await request('/auth/register', { method: 'POST', body: register('Teste monetário', 'large-money@example.test') })
+    const account = await request('/accounts', { method: 'POST', cookie: user.cookie, body: { name: 'Conta de teste', type: 'corrente', openingCents: 0, isReserve: false, description: '' } })
+    assert.equal(account.status, 201)
+    const entry = await request('/entries', { method: 'POST', cookie: user.cookie, key: 'large-entry-test', body: { accountId: account.body.id, title: 'Valor alto', category: 'Salário', type: 'income', amountCents: 1234567890, date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }), note: '' } })
+    assert.equal(entry.status, 201)
+    const state = await request('/state', { cookie: user.cookie })
+    assert.equal(state.body.entries[0].amountCents, 1234567890)
+    assert.equal(state.body.accounts[0].balanceCents, 1234567890)
+  } finally {
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    db.close()
+  }
+})

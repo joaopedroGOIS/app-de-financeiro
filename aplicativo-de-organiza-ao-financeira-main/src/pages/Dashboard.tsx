@@ -1,9 +1,13 @@
+import { GooseCompanion } from '../components/GooseCompanion'
+import { AdventureArt } from './AdventureArt'
+import { useState } from 'react'
+import { FinancialReports, ReportDetails } from './FinancialReports'
 import { Activity, ArrowDownLeft, ArrowUpRight, Award, Banknote, BookOpen, CalendarClock, CarFront, Clapperboard, Coins, Flame, Gem, HeartPulse, House, Landmark, Pencil, Plus, Repeat2, Shapes, ShieldCheck, ShoppingBag, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Utensils, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { categoryColor, compact, currency, dateToday, displayDate, monthName, monthShift, percent, signed } from '../data'
+import { categoryColor, currency, dateToday, displayDate, monthName, monthShift, percent, signed } from '../data'
 import type { Entry, Goal } from '../data'
-import { Badge, Button, Card, CardHeader, DonutChart, EmptyState, EvolutionChart, GoalCard, ProgressBar } from '../ui'
-import type { EvolutionPoint } from '../ui'
+import { Badge, Button, Card, CardHeader, DonutChart, EmptyState, GoalCard, ProgressBar } from '../ui'
+
 import type { PageProps } from './shared'
 import { levelProgress, RewardHistory } from '../gamification'
 
@@ -23,6 +27,7 @@ export function CategoryGlyph({ name, type, size = 18 }: { name: string; type?: 
 }
 
 export function DashboardPage({ state, month, go, open, editEntry, editGoal, contributeTo, requestRemove }: PageProps & { month: string }) {
+  const [reportCategory, setReportCategory] = useState<string | null>(null)
   const firstName = state.user.name.split(' ')[0]
   const today = dateToday()
   const previousMonth = monthShift(month, -1)
@@ -45,13 +50,6 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
     .sort((a, b) => b.cents - a.cents)
   const recentEntries = state.entries.filter(entry => entry.date <= today)
   const upcoming = state.entries.filter(entry => entry.date > today && !entry.settled && !entry.cardPaymentId).sort((a, b) => a.date.localeCompare(b.date))
-  const evolution: EvolutionPoint[] = Array.from({ length: 6 }, (_, index) => {
-    const key = monthShift(month, index - 5)
-    const value = state.entries.filter(entry => entry.date.slice(0, 7) === key && entry.type !== 'adjustment').reduce((sum, entry) => sum + signed(entry), 0)
-    return { key, label: monthName(key).split(' de ')[0].slice(0, 3), value, formatted: compact(value) }
-  })
-  const hasEvolution = evolution.some(point => point.value !== 0)
-
   // Comparativo só aparece quando o mês anterior tem registros reais.
   const compare = (current: number, previous: number, inverted = false) => {
     if (!previous) return undefined
@@ -97,6 +95,12 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
         </div>
       </div>
 
+      <nav className="adventure-actions" aria-label="Atalhos financeiros">
+        <button type="button" onClick={openEntry}><span><Plus size={22} /></span><div><strong>Registrar movimentação</strong><small>Receitas e despesas</small></div></button>
+        <button type="button" onClick={() => go('accounts')}><span><Wallet size={22} /></span><div><strong>Minhas contas</strong><small>Seus saldos em um lugar</small></div></button>
+        <button type="button" onClick={() => go('goals')}><span><Target size={22} /></span><div><strong>Meus objetivos</strong><small>Construa seu próximo passo</small></div></button>
+        <button type="button" onClick={() => go('cards')}><span><CalendarClock size={22} /></span><div><strong>Cartões e faturas</strong><small>Acompanhe seus compromissos</small></div></button>
+      </nav>
       <div className="dashboard-overview">
         <Card className="net-worth-card dashboard-net-worth">
           <div className="net-worth-heading">
@@ -107,6 +111,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
             </div>
             <span className="net-worth-icon"><Gem size={21} /></span>
           </div>
+          <AdventureArt landscape />
           <div className="net-worth-breakdown">
             <div>
               <span><Wallet size={14} />Saldo total das contas</span>
@@ -127,6 +132,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
         </Card>
 
         <div className="level-panel dashboard-level-panel">
+          <AdventureArt />
           <div className="level-head">
             <span className="level-badge" aria-label={`Nível ${state.progress.level}`}><Gem size={18} aria-hidden="true" /><strong>{state.progress.level}</strong></span>
             <span className="level-head-text">
@@ -182,23 +188,17 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
       <RewardHistory game={state.gamification} limit={3}/>
       <div className="below-overview-monthly-summary">{monthlySummary}</div>
 
+      <nav className="adventure-trail" aria-label="Sua jornada financeira">
+        <div><span className="hero-kicker">SUA JORNADA</span><h3>Um passo de cada vez.</h3><p>Organize o presente e acompanhe suas conquistas.</p></div>
+        <button type="button" onClick={() => go('entries')}><span><BookOpen size={22} /></span>Organizar registros</button>
+        <button type="button" onClick={() => go('goals')}><span><Target size={22} /></span>Construir objetivos</button>
+        <button type="button" onClick={() => go('journey')}><span><Award size={22} /></span>Ver evolução</button>
+      </nav>
+      <GooseCompanion />
       <div className="dashboard-grid">
-        <Card className="span-8">
-          <CardHeader title="Evolução financeira" description="Resultado mensal de receitas menos gastos — sem ajustes, bens ou reserva." icon={Activity} />
-          {hasEvolution ? (
-            <>
-              <EvolutionChart data={evolution} />
-              <div className="chart-legend">
-                <span><i className="legend-dot" />Resultado do mês</span>
-                <span><i className="legend-dot warning" />Mês negativo</span>
-              </div>
-            </>
-          ) : (
-            <EmptyState icon={<TrendingUp size={26} />} title="Sua evolução começa agora" text="Registre receitas e gastos para acompanhar os resultados mês a mês." action={newEntryButton} />
-          )}
-        </Card>
+        <FinancialReports key={month} entries={state.entries} month={month} />
 
-        <Card className="span-4">
+        <Card className="span-4 category-report">
           <CardHeader title="Para onde foi sua grana?" description={`Distribuição dos gastos em ${monthName(month)}`} action={<Button variant="ghost" size="sm" onClick={() => go('entries')}>Ver todas <ArrowUpRight size={15} /></Button>} />
           {categoryTotals.length ? (
             <div className="category-panel">
@@ -211,14 +211,14 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
                 {categoryTotals.map(category => {
                   const tone = categoryColor(category.name)
                   return (
-                    <div className="category-row" key={category.name}>
+                    <button type="button" className="category-report-button" key={category.name} onClick={() => setReportCategory(category.name)} aria-label={`Ver lançamentos de ${category.name}`} aria-pressed={reportCategory === category.name}><div className="category-row">
                       <span className="category-glyph" style={{ background: tone.soft, color: tone.color }}><CategoryGlyph name={category.name} /></span>
                       <div className="category-row-body">
                         <div className="category-line"><strong>{category.name}</strong><span>{percent(category.cents, expenses)}%</span></div>
                         <small className="category-amount">{currency(category.cents)}</small>
                         <ProgressBar value={percent(category.cents, expenses)} size="thin" label={`Percentual de ${category.name} nos gastos de ${monthName(month)}`} />
                       </div>
-                    </div>
+                    </div></button>
                   )
                 })}
               </div>
@@ -227,6 +227,8 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
             <EmptyState icon={<Activity size={26} />} title="Tudo tranquilo por aqui" text="Quando você registrar gastos neste mês, verá seus hábitos por categoria." />
           )}
         </Card>
+
+        {reportCategory && <Card className="span-12 category-report-details"><CardHeader title="Detalhes por categoria" action={<Button variant="ghost" size="sm" onClick={() => setReportCategory(null)}>Fechar detalhes</Button>} /><ReportDetails key={`${month}-${reportCategory}`} title={`${reportCategory} · ${monthName(month)}`} entries={monthEntries.filter(entry => entry.type === 'expense' && entry.category === reportCategory && !entry.cardPaymentId)} /></Card>}
 
         {upcoming.length > 0 && (
           <Card className="span-12">
