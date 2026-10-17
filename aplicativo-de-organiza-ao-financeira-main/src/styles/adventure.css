@@ -64,3 +64,9 @@
 .goose-copy h3{font:800 24px var(--font-display);margin:12px 0}.goose-copy p{color:var(--text-secondary);font-size:14px;line-height:1.6}.goose-copy small{display:block;color:var(--text-muted);font-size:12px;line-height:1.6;margin-top:12px}
 .dashboard-overview .dashboard-level-panel{justify-content:center;gap:24px}
 @media(max-width:760px){.goose-companion{gap:5px;padding:15px;flex-direction:column;text-align:center}.goose-stage{width:220px;height:240px;flex-basis:240px}.goose-copy h3{font-size:21px}.goose-kicker{justify-content:center}.goose-copy{padding-bottom:14px}}
+.goose-stage{cursor:grab;touch-action:pan-y}
+.goose-stage[data-dragging=true]{cursor:grabbing}
+.goose-controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.goose-controls button{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 12px;border:1px solid var(--border-strong);border-radius:10px;color:var(--primary-text);background:var(--primary-soft);font-size:12px}
+.goose-controls button:hover{background:var(--primary-soft-strong)}
+@media(max-width:760px){.goose-controls{justify-content:center}}

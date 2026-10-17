@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Feather } from 'lucide-react'
+import { Feather, RotateCcw, RotateCw } from 'lucide-react'
 
 export function GooseCompanion() {
   const host = useRef<HTMLDivElement>(null)
@@ -17,7 +17,7 @@ export function GooseCompanion() {
   }, [])
 
   return <section className="goose-companion" aria-label="Seu companheiro ganso">
-    <div ref={host} className="goose-stage" tabIndex={0} role="img" aria-label="Ganso 3D interativo. Mova o ponteiro, toque ou use as setas para direcionar o olhar.">
+    <div ref={host} className="goose-stage" tabIndex={0} role="img" aria-label="Ganso 3D interativo. Mova o ponteiro para direcionar o olhar e arraste para girar. Use as setas para mover o olhar pelo teclado.">
       <svg className="goose-fallback" viewBox="0 0 200 220" aria-hidden="true">
         <ellipse cx="100" cy="202" rx="58" ry="9" fill="var(--primary-soft-strong)" />
         <path d="M75 174V199H56 M116 174V199H139" fill="none" stroke="var(--warning)" strokeWidth="12" strokeLinecap="round" />
@@ -35,7 +35,12 @@ export function GooseCompanion() {
       <span className="goose-kicker"><Feather size={15} aria-hidden="true" />SEU COMPANHEIRO</span>
       <h3>Uma companhia para cada passo.</h3>
       <p>Seu ganso acompanha essa jornada com você.</p>
-      <small>Mova o ponteiro sobre ele. No celular, toque. Pelo teclado, use as setas.</small>
+      <small>Mova o mouse para ele olhar. Arraste para girar; no celular, deslize na horizontal.</small>
+      <div className="goose-controls" aria-label="Rotação do ganso">
+        <button type="button" aria-label="Girar ganso para a esquerda" onClick={() => host.current?.dispatchEvent(new CustomEvent('goose-rotate', { detail: -1 }))}><RotateCcw size={17} />Girar</button>
+        <button type="button" onClick={() => host.current?.dispatchEvent(new CustomEvent('goose-rotate', { detail: 0 }))}>Vista inicial</button>
+        <button type="button" aria-label="Girar ganso para a direita" onClick={() => host.current?.dispatchEvent(new CustomEvent('goose-rotate', { detail: 1 }))}>Girar<RotateCw size={17} /></button>
+      </div>
     </div>
   </section>
 }
