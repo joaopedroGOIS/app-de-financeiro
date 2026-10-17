@@ -6453,3 +6453,35 @@ body {
   .credit-card-tabs { margin-right:-8px; }
   .bottom-nav-item { min-width:0; flex:1; }
 }
+
+/* Histórico usa as mesmas cores dos cartões nos dois temas. */
+.reward-history { list-style:none; padding:0; margin:0; }
+.reward-history li { display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
+.reward-history li > div { flex:1; min-width:0; }
+.reward-history strong { display:block; font-size:13px; }
+.reward-history small { display:block; margin-top:4px; font-size:11px; overflow-wrap:anywhere; opacity:.7; }
+.reward-history-icon { color:var(--primary); }
+.profile-progress { padding:16px 0; }
+.profile-progress p { margin:10px 0; }
+.profile-progress small { display:block; margin-top:8px; }
+
+.routine-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+
+.missions-section { margin:24px 0; }
+.missions-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.mission-labels { display:flex; flex-wrap:wrap; gap:8px; }
+.mission-card p { margin:12px 0; }
+.mission-card small { display:block; opacity:.75; }
+.mission-reward { color:var(--primary); }
+.mission-history { margin-top:16px; }
+.mission-history summary { cursor:pointer; margin-bottom:16px; }
+@media(max-width:640px) { .missions-grid { grid-template-columns:1fr; } }
+
+.csv-import-fields { border:0; padding:0; margin:0; display:grid; gap:16px; min-width:0; }
+.csv-preview { max-height:360px; overflow:auto; border:1px solid var(--border); border-radius:12px; }
+.csv-preview table { width:100%; border-collapse:collapse; font-size:13px; }
+.csv-preview th,.csv-preview td { padding:10px; text-align:left; vertical-align:top; border-bottom:1px solid var(--border); min-width:100px; overflow-wrap:anywhere; }
+.csv-preview th { background:var(--surface); }
+.csv-preview td small { display:block; margin-top:6px; }
+.csv-preview input[type=checkbox] { width:18px; height:18px; }
+.csv-preview select { min-width:130px; }

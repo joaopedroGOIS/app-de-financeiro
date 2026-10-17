@@ -8,10 +8,12 @@ import { useTheme } from './theme'
 import type { ThemeMode } from './theme'
 import { AccountForm, AssetForm, ContributionForm, EntryForm, GoalForm } from './forms'
 import { CategoryManager } from './CategoryManager'
+import { PlayerSummary, RewardHistory, rewardFeedback } from './gamification'
 import { AccountsPage } from './pages/Accounts'
 import { CreditCardsPage } from './pages/CreditCards'
 import { DashboardPage } from './pages/Dashboard'
 import { EntriesPage } from './pages/Entries'
+import { CsvImport } from './CsvImportDialog'
 import type { EntryFilter } from './pages/Entries'
 import { GoalsPage } from './pages/Goals'
 import { JourneyPage } from './pages/Journey'
@@ -146,10 +148,23 @@ export default function App() {
   const [pendingRemove, setPendingRemove] = useState<{ path: string; title: string; description: string } | null>(null)
   const { mode, setMode } = useTheme()
   const modeRef = useRef(mode)
+  const operationKey = useRef<string | null>(null)
+  const rewardNotice = useRef('')
+  const lastProgress = useRef<State | null>(null)
   modeRef.current = mode
 
   const showToast = (message: string, tone: 'success' | 'error' = 'success') => setToast({ message, tone })
-  const refresh = async () => { const data = await api<State>('/state'); setState(data); return data }
+  const refresh = async () => {
+    const data = await api<State>('/state')
+    const before=lastProgress.current
+    rewardNotice.current=before?.user.id===data.user.id ? rewardFeedback(before.progress,data.progress) : ''
+    if(before?.user.id===data.user.id && data.stats.financialClass && before.stats.financialClass && before.stats.financialClass!==data.stats.financialClass) {
+      rewardNotice.current += ` Sua classe financeira agora é ${data.stats.financialClass}.`
+    }
+    lastProgress.current=data
+    setState(data)
+    return data
+  }
 
   const boot = (afterAuth = false) => {
     setChecking(true)
@@ -218,18 +233,28 @@ export default function App() {
   const execute = async (path: string, options: RequestInit, success: string) => {
     setFormError('')
     try {
+      if (options.method==='POST' && (path==='/entries' || path.endsWith('/contributions'))) {
+        operationKey.current ??= crypto.randomUUID()
+        const requestHeaders=new Headers(options.headers)
+        requestHeaders.set('Idempotency-Key',operationKey.current)
+        options={...options,headers:requestHeaders}
+      }
       await api(path, options)
-      await refresh()
-      setAnalysis({})
-      setModal(null)
-      showToast(success)
-      return true
     } catch (err) {
       const message = (err as Error).message
       setFormError(message)
       showToast(message, 'error')
       return false
     }
+    // A operação já está confirmada. Uma falha de leitura não deve oferecer novo envio.
+    operationKey.current=null
+    setAnalysis({})
+    setModal(null)
+    try {
+      await refresh()
+      showToast([success,rewardNotice.current].filter(Boolean).join(' '))
+    } catch { showToast(`${success} Não foi possível atualizar o painel agora. Recarregue para sincronizar.`, 'error') }
+    return true
   }
 
   const go = (to: PageId) => {
@@ -244,7 +269,7 @@ export default function App() {
 
   const goHome = () => { const from = page; go('dashboard'); if (from !== 'dashboard') setReturnTo(from) }
   const goBack = () => { if (returnTo) window.history.back() }
-  const open = (kind: ModalKind) => { setFormError(''); setModal(kind) }
+  const open = (kind: ModalKind) => { operationKey.current=null; setFormError(''); setModal(kind) }
   const chooseMonth = (offset: number) => setMonth(previous => monthShift(previous, offset))
 
   const downloadCSV = () => {
@@ -433,11 +458,12 @@ export default function App() {
           </>}
 
           {page === 'entries' && <>
+            <CsvImport state={state} onUpdated={refresh}/>
             <PageHeading
               eyebrow="SEU HISTÓRICO"
               title="Movimentações"
               description="Receitas, despesas e ajustes organizados com clareza."
-              action={<Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button>}
+              action={<div className="dashboard-page-actions"><CsvImport state={state} onUpdated={refresh}/><Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button></div>}
             />
             <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={monthPicker} />
           </>}
@@ -464,7 +490,7 @@ export default function App() {
 
           {page === 'journey' && <>
             <PageHeading eyebrow="PROGRESSO REGISTRADO" title="Evolução" description="O jogo acompanha hábitos reais. Nunca incentiva gastos ou dívidas." />
-            <JourneyPage {...pageProps} />
+            <JourneyPage {...pageProps} onUpdated={async()=>{await refresh();showToast(['Revisão registrada.',rewardNotice.current].filter(Boolean).join(' '))}}/>
           </>}
         </div>
       </main>
@@ -520,6 +546,9 @@ export default function App() {
       )}
       {modal === 'profile' && (
         <Modal title="Meu perfil" subtitle="Cuide do seu espaço, da aparência e dos seus dados." onClose={() => setModal(null)} wide immersiveOnMobile>
+          <PlayerSummary progress={state.progress} streak={state.stats.streak}/>
+          <p>Classe financeira: <strong>{state.stats.financialClass ?? 'Aguardando sincronização'}</strong></p>
+          <RewardHistory game={state.gamification}/>
           <form className="form" onSubmit={async event => { event.preventDefault(); await execute('/profile', json('PATCH', { name: profileName }), 'Nome atualizado.') }}>
             <label>Como podemos chamar você?
               <input required maxLength={50} value={profileName} onChange={event => setProfileName(event.target.value)} />

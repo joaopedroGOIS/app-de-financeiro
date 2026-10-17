@@ -2,15 +2,18 @@ import { GooseCompanion } from '../components/GooseCompanion'
 import { Award, CheckCircle2, Coins, Flame, Gem, LockKeyhole, Medal, ShieldCheck, Sparkles, Target, Zap } from 'lucide-react'
 import { Badge, Card, CardHeader, EmptyState, ProgressRing } from '../ui'
 import type { PageProps } from './shared'
+import { levelProgress, RewardHistory } from '../gamification'
+import { FinancialRoutines } from '../FinancialRoutines'
+import { MissionsSection } from '../Missions'
 
 /* ==========================================================================
    Jornada — camada de jogo. Só exibe o que o servidor realmente registra:
    XP, nível, Graninha, sequência e marcos de objetivos.
    ========================================================================== */
 
-export function JourneyPage({ state, go }: PageProps) {
-  const milestones = state.goals.flatMap(goal => goal.milestones.map(milestone => ({ goal, milestone })))
-  const xpProgress = state.progress.nextLevelXp ? Math.min(100, (state.progress.xp_total / state.progress.nextLevelXp) * 100) : 0
+export function JourneyPage({ state, go, onUpdated }: PageProps & { onUpdated?:()=>Promise<void> }) {
+  const milestones = state.gamification?.milestones.map(m=>({goal:{id:m.goal_id,title:m.title},milestone:m.milestone})) ?? state.goals.flatMap(goal => goal.milestones.map(milestone => ({ goal, milestone })))
+  const xpBar = levelProgress(state.progress), xpProgress = xpBar.percent
 
   return (
     <>
@@ -37,7 +40,7 @@ export function JourneyPage({ state, go }: PageProps) {
             )}
           </div>
           <small>Experiência registrada no servidor</small>
-          <small>{state.progress.nextLevelXp ? `Progresso para o nível ${state.progress.level + 1}` : 'Curva oficial de XP ainda não configurada — nada é estimado aqui.'}</small>
+          <small>{xpBar.label}</small>
         </div>
         <div className="journey-stat">
           <span className="stat-icon info"><Coins size={20} /></span>
@@ -52,7 +55,10 @@ export function JourneyPage({ state, go }: PageProps) {
       </div>
 
       <GooseCompanion />
+      <MissionsSection missions={state.missions}/>
       <div className="journey-details">
+        {onUpdated && <FinancialRoutines state={state} onUpdated={onUpdated}/>}
+        <RewardHistory game={state.gamification} limit={50}/>
         <Card>
           <CardHeader title="Conquistas reais" description="Marcos de progresso dos seus objetivos" icon={Medal} />
           {milestones.length ? (
@@ -76,7 +82,7 @@ export function JourneyPage({ state, go }: PageProps) {
         <Card>
           <CardHeader title="Uma evolução de verdade." description="XP, Graninha e recompensas com regras versionadas e processamento no servidor." icon={Gem} />
           <p className="card-description">
-            Como os valores oficiais da economia ainda não estão definidos neste repositório, nenhuma ação gera recompensa inventada. Seu progresso mostrado aqui vem direto do banco.
+            {state.gamification?.configVersion ? 'Suas recompensas seguem as regras ativas. Cada conquista fica registrada no seu histórico.' : 'As regras de recompensas estão em preparação. Você já pode organizar suas finanças e acompanhar seus objetivos.'}
           </p>
           <div className="economy-list">
             <div><LockKeyhole size={16} />Sem comprar XP ou Graninha</div>
@@ -85,6 +91,9 @@ export function JourneyPage({ state, go }: PageProps) {
             <div><Target size={16} />Dificuldade dos Sonhos calculada no servidor</div>
           </div>
         </Card>
+        {!!state.gamification?.behaviors.length && <Card><CardHeader title="Hábitos e missões concluídos" icon={CheckCircle2}/><ul className="reward-history">{state.gamification.behaviors.map(item=><li key={`${item.code}:${item.period_start}`}><CheckCircle2 size={18}/><div><strong>{item.kind==='habit'?'Hábito':'Missão'} concluído</strong><small>{item.period_start} · {item.code}</small></div></li>)}</ul></Card>}
+        {!!state.gamification?.streakMilestones.length && <Card><CardHeader title="Marcos da sua sequência" icon={Flame}/><ul className="reward-history">{state.gamification.streakMilestones.map(item=><li key={`${item.cycle_start}:${item.milestone}`}><Flame size={18}/><div><strong>{item.milestone} dias de constância</strong><small>Ciclo iniciado em {item.cycle_start}</small></div></li>)}</ul></Card>}
+        {!!state.financialClass?.history.length && <Card><CardHeader title="Sua trajetória financeira" description="As classes acompanham a reserva de cada momento" icon={Gem}/><ul className="reward-history">{state.financialClass.history.map(item=><li key={item.id}><Gem size={18}/><div><strong>{item.class_code}</strong><small>{new Date(item.created_at).toLocaleDateString('pt-BR')}</small></div></li>)}</ul></Card>}
       </div>
     </>
   )

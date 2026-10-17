@@ -2,7 +2,7 @@
 
 O cadastro fica em **Cartões de crédito**, com nome, limite, fechamento, vencimento e quatro dígitos opcionais. Não há armazenamento de número completo ou CVV, nem conexão automática com a operadora.
 
-- Compras à vista ou em até 60 parcelas. O valor informado é o total final da compra, incluindo juros quando houver.
+- Compras à vista ou em até 60 parcelas. Informe o valor original da compra. Se houver juros, marque “Esta compra tem juros” e escolha reais ou porcentagem total (até duas casas decimais). O percentual é aplicado uma única vez sobre o valor original, com arredondamento para centavos; o total com juros é dividido nas parcelas. Por exemplo, R$ 1.000,00 com 20% resulta em R$ 200,00 de juros e R$ 1.200,00 a pagar. O banco guarda o valor dos juros em centavos. Não há cálculo por taxa mensal.
 - Compras no dia do fechamento entram no próximo ciclo. O mês da primeira fatura pode ser ajustado para coincidir com a operadora.
 - Cada parcela é uma despesa no mês do vencimento, inclusive em gráficos, histórico, CSV e cálculo da capacidade para Sonhos. A divisão preserva todos os centavos.
 - A compra total compromete o limite e entra no passivo do patrimônio imediatamente. O pagamento reduz saldo da conta e dívida, sem duplicar despesas e sem alterar o patrimônio líquido.
@@ -13,7 +13,7 @@ O cadastro fica em **Cartões de crédito**, com nome, limite, fechamento, venci
 
 ## Banco de dados
 
-Migration: `supabase/migrations/20261015000000_credit_cards.sql`, na raiz do repositório. Foi aplicada ao projeto Supabase conectado `ezzjahpnbinarylpldrd` pelo SQL Editor e registrada no histórico em 15/10/2026. As quatro tabelas tiveram RLS e permissões conferidas.
+Migrations: `supabase/migrations/20261015000000_credit_cards.sql` e `supabase/migrations/20261015010000_card_purchase_interest.sql`, na raiz do repositório. Foi aplicada ao projeto Supabase conectado `ezzjahpnbinarylpldrd` pelo SQL Editor e registrada no histórico em 15/10/2026. As quatro tabelas tiveram RLS e permissões conferidas.
 
 Em outra instalação, aplique a migration antes de liberar o recurso. Quando o RPC ainda não existe, a página de cartões informa que a atualização está em preparação e as funcionalidades anteriores continuam disponíveis.
 

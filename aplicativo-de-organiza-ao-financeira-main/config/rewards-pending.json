@@ -1,0 +1,77 @@
+{
+  "status": "activated_in_economy_v2",
+  "goals": {
+    "milestones": [
+      {
+        "milestone": 10,
+        "xp": 20,
+        "graninha": 15
+      },
+      {
+        "milestone": 25,
+        "xp": 30,
+        "graninha": 25
+      },
+      {
+        "milestone": 50,
+        "xp": 50,
+        "graninha": 40
+      },
+      {
+        "milestone": 75,
+        "xp": 75,
+        "graninha": 60
+      },
+      {
+        "milestone": 100,
+        "xp": 150,
+        "graninha": 150
+      }
+    ],
+    "pending": []
+  },
+  "dreams": {
+    "base_xp": 500,
+    "multipliers": {
+      "fácil": 1,
+      "moderada": 1.5,
+      "difícil": 2,
+      "muito_difícil": 3,
+      "lendária": 5
+    },
+    "pending": [],
+    "milestone_shares": [
+      5,
+      10,
+      15,
+      20,
+      50
+    ],
+    "graninha": 0
+  },
+  "missions": {
+    "easy": {
+      "xp": 10,
+      "graninha": 10
+    },
+    "medium": {
+      "xp": 25,
+      "graninha": 25
+    },
+    "hard": {
+      "xp": 60,
+      "graninha": 50
+    },
+    "very_hard": {
+      "xp": 100,
+      "graninha": 100
+    },
+    "pending": []
+  },
+  "daily_saving": {
+    "xp": 5,
+    "pending": []
+  },
+  "configuration": "config/economy-v2.json",
+  "evidence_policy": "manual_confirmation_of_real_savings_not_counted_in_another_goal"
+}

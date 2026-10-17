@@ -127,7 +127,7 @@ test('dashboard renderiza saldo, nível, Graninha, sequência e os totais do mê
   assert.match(html, /R\$\s42\.264,50/)        // patrimônio (contas + bens − dívidas)
   assert.match(html, /12 Graninha/)
   assert.match(html, /3 dias/)
-  assert.match(html, /A definir/)              // classe financeira não é inventada
+  assert.match(html, /Aguardando sincronização/)              // classe financeira não é inventada
   assert.match(html, /curva oficial de XP ainda não está configurada/i)
   // O aluguel é do mês anterior: entra em "recentes", mas não nos totais do mês.
   assert.match(html, /-76% vs /)

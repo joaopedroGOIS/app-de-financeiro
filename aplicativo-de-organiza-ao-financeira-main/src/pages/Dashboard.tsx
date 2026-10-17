@@ -9,6 +9,7 @@ import type { Entry, Goal } from '../data'
 import { Badge, Button, Card, CardHeader, DonutChart, EmptyState, GoalCard, ProgressBar } from '../ui'
 
 import type { PageProps } from './shared'
+import { levelProgress, RewardHistory } from '../gamification'
 
 /* ==========================================================================
    Dashboard — visão consolidada da situação financeira + camada de jogo.
@@ -65,7 +66,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
   const incomeTrend = compare(income, previousIncome)
   const expenseTrend = compare(expenses, previousExpenses, true)
   const monthlyResult = income - expenses
-  const xpProgress = state.progress.nextLevelXp ? Math.min(100, (state.progress.xp_total / state.progress.nextLevelXp) * 100) : 0
+  const xpBar = levelProgress(state.progress), xpProgress = xpBar.percent
   const openEntry = () => { if (!state.accounts.length) return go('accounts'); editEntry(null); open('entry') }
   const newEntryButton = <Button onClick={openEntry}><Plus size={18} />Nova movimentação</Button>
   const monthlySummary = (
@@ -123,10 +124,10 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
           </div>
           <div className="financial-class-note">
             <span className="financial-class-mark"><Sparkles size={14} /></span>
-            <div><small>Classe financeira</small><strong>A definir</strong></div>
-            <Badge tone="warning">Critérios em definição</Badge>
+            <div><small>Classe financeira</small><strong>{state.stats.financialClass ?? 'Aguardando sincronização'}</strong></div>
+            <Badge tone="primary">Sua reserva</Badge>
           </div>
-          <p className="financial-class-hint">Nenhuma classe é atribuída por saldo ou reserva enquanto os critérios oficiais não estiverem definidos.</p>
+          <p className="financial-class-hint">Sua classe acompanha apenas a reserva elegível. XP, bens e dívidas não definem sua classe.</p>
           <div className="desktop-monthly-summary">{monthlySummary}</div>
         </Card>
 
@@ -141,13 +142,13 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
           </div>
           <div>
             <div className="level-xp">
-              <span>Progresso para o nível {state.progress.level + 1}</span>
-              <strong>{state.progress.nextLevelXp ? `${state.progress.xp_total}/${state.progress.nextLevelXp} XP` : 'não configurado'}</strong>
+              <span>{state.progress.level===100?'Nível máximo':`Progresso para o nível ${state.progress.level + 1}`}</span>
+              <strong>{xpBar.label}</strong>
             </div>
             {state.progress.nextLevelXp && <ProgressBar value={xpProgress} onHero size="thick" label="Progresso de XP para o próximo nível" />}
             <p className="level-note">
-              {state.progress.nextLevelXp
-                ? 'Progresso calculado pela curva oficial de XP do servidor.'
+              {state.progress.level===100 ? 'Sua evolução continua nos seus hábitos.' : state.progress.nextLevelXp
+                ? `Faltam ${xpBar.remaining} XP para o próximo nível.`
                 : 'A curva oficial de XP ainda não está configurada neste servidor. Mostramos seu XP registrado, sem estimar nada.'}
             </p>
           </div>
@@ -184,6 +185,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
 
       </div>
 
+      <RewardHistory game={state.gamification} limit={3}/>
       <div className="below-overview-monthly-summary">{monthlySummary}</div>
 
       <nav className="adventure-trail" aria-label="Sua jornada financeira">
