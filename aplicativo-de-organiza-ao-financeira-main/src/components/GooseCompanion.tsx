@@ -35,7 +35,7 @@ export function GooseCompanion() {
       <span className="goose-kicker"><Feather size={15} aria-hidden="true" />SEU COMPANHEIRO</span>
       <h3>Uma companhia para cada passo.</h3>
       <p>Seu ganso acompanha essa jornada com você.</p>
-      <small>Mova o mouse para ele olhar. Arraste para girar; no celular, deslize na horizontal.</small>
+      <small>Passe o mouse por aqui: ele olha para o ponteiro! Arraste o ganso para girar; no celular, deslize na horizontal.</small>
       <div className="goose-controls" aria-label="Rotação do ganso">
         <button type="button" aria-label="Girar ganso para a esquerda" onClick={() => host.current?.dispatchEvent(new CustomEvent('goose-rotate', { detail: -1 }))}><RotateCcw size={17} />Girar</button>
         <button type="button" onClick={() => host.current?.dispatchEvent(new CustomEvent('goose-rotate', { detail: 0 }))}>Vista inicial</button>
