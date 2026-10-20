@@ -38,6 +38,36 @@ export function cardOutstanding(state: CardState, cardId?: string) {
   return cardBills(state).filter(bill => !cardId || bill.cardId === cardId).reduce((sum, bill) => sum + bill.remainingCents, 0)
 }
 
+/** Oldest overdue balance first, then the next unpaid bill; paid history stays accessible. */
+export function relevantCardBill(bills: CardBill[], today: string): CardBill | undefined {
+  const sorted = [...bills].sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+  return sorted.find(bill => bill.remainingCents > 0 && bill.dueDate < today)
+    ?? sorted.find(bill => bill.remainingCents > 0)
+    ?? sorted.find(bill => bill.month === today.slice(0, 7))
+    ?? sorted[sorted.length - 1]
+}
+
+/** Remaining recorded commitments, including partial payments and empty calendar months. */
+export function cardCommitmentForecast(bills: CardBill[], startMonth: string, count: number) {
+  return Array.from({ length: count }, (_, index) => {
+    const month = shiftMonth(startMonth, index)
+    const matches = bills.filter(bill => bill.month === month)
+    return { month, totalCents: matches.reduce((sum, bill) => sum + bill.totalCents, 0),
+      remainingCents: matches.reduce((sum, bill) => sum + bill.remainingCents, 0),
+      installments: matches.reduce((sum, bill) => sum + bill.installments.length, 0) }
+  })
+}
+
+const purchaseSearchText = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR')
+export function filterCardPurchases(purchases: CardPurchase[], cardId: string, query: string, category: string, kind: 'all' | 'single' | 'installments') {
+  const needle = purchaseSearchText(query.trim())
+  return purchases.filter(purchase => purchase.cardId === cardId
+    && (!category || purchase.category === category)
+    && (kind === 'all' || (kind === 'single' ? purchase.installments === 1 : purchase.installments > 1))
+    && purchaseSearchText(`${purchase.title} ${purchase.category} ${purchase.subcategory} ${purchase.note}`).includes(needle))
+    .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id))
+}
+
 export function cardExpenseEntries(state: CardState): Entry[] {
   const purchases = new Map(state.purchases.map(purchase => [purchase.id, purchase]))
   const bills = new Map(cardBills(state).map(bill => [`${bill.cardId}:${bill.month}`, bill]))

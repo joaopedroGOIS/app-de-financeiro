@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { cardBills, cardOutstanding, cardExpenseEntries, emptyCardState, firstCardBill, installmentPreview, percentageInterestCents } from './creditCards'
 import type { CardState } from './creditCards'
+import { relevantCardBill, cardCommitmentForecast, filterCardPurchases } from './creditCards'
 import { netStats } from './data'
 import type { State } from './data'
 import { CreditCardsPage, CreditCardForm, CardPurchaseForm, CardPaymentForm } from './pages/CreditCards'
@@ -76,7 +77,7 @@ test('liquidação marca somente a fatura paga e mantém parcelas futuras na dí
   assert.equal(cardOutstanding(data,'other'),0)
 })
 test('tela exibe limite, parcelas, fatura e ação de registrar pagamento',()=>{
-  const html=renderToStaticMarkup(<CreditCardsPage state={uiState} month="2026-10" setMonth={noop} onUpdated={async()=>{}} toast={noop}/>)
+  const html=renderToStaticMarkup(<CreditCardsPage state={uiState} month="2026-10" onUpdated={async()=>{}} toast={noop}/>)
   assert.match(html,/Meu cartão/)
   assert.match(html,/R\$\s900,00/)
   assert.match(html,/Parcela 1\/3/)
@@ -102,7 +103,46 @@ test('lançamentos de cartão não oferecem edição de lançamento bancário',(
   assert.match(html,/Em Cartões/)
 })
 test('sem migration a tela informa indisponibilidade e não permite criar cartão',()=>{
-  const html=renderToStaticMarkup(<CreditCardsPage state={{...uiState,creditCardsEnabled:false,creditCards:emptyCardState()}} month="2026-10" setMonth={noop} onUpdated={async()=>{}} toast={noop}/>)
+  const html=renderToStaticMarkup(<CreditCardsPage state={{...uiState,creditCardsEnabled:false,creditCards:emptyCardState()}} month="2026-10" onUpdated={async()=>{}} toast={noop}/>)
   assert.match(html,/Cartões em preparação/)
   assert.doesNotMatch(html,/Adicionar cartão/)
+})
+
+test('fatura recomendada prioriza atraso em vez de mês vazio e preserva histórico pago', () => {
+  const bills = cardBills(state)
+  assert.equal(relevantCardBill([...bills].reverse(), '2026-09-10')?.month, '2026-10')
+  assert.equal(relevantCardBill(bills, '2026-11-01')?.month, '2026-10', 'oldest overdue comes first')
+  const paid = bills.map(bill => ({ ...bill, paidCents: bill.totalCents, remainingCents: 0 }))
+  assert.equal(relevantCardBill(paid, '2026-11-01')?.month, '2026-11')
+  assert.equal(relevantCardBill(paid, '2027-01-01')?.month, '2026-12')
+  assert.equal(relevantCardBill([], '2026-10-18'), undefined)
+  const partiallyPaid = bills.map((bill, index) => ({ ...bill, remainingCents: index === 0 ? 1 : bill.remainingCents }))
+  assert.equal(relevantCardBill(partiallyPaid, '2026-11-01')?.remainingCents, 1)
+})
+
+test('projeção usa saldo restante, mantém meses vazios e atravessa a virada do ano', () => {
+  const bills = cardBills({ ...state, payments: [{ id: 'pay', cardId: 'card', accountId: 'a', billMonth: '2026-10', amountCents: 2000, date: '2026-10-18', note: '' }] })
+  const before = JSON.stringify(bills)
+  const points = cardCommitmentForecast(bills, '2026-10', 6)
+  assert.deepEqual(points.map(point => point.month), ['2026-10', '2026-11', '2026-12', '2027-01', '2027-02', '2027-03'])
+  assert.equal(points[0].remainingCents, 1334)
+  assert.equal(points[0].totalCents, 3334)
+  assert.equal(points.reduce((sum, point) => sum + point.remainingCents, 0), 8000)
+  assert.equal(points[3].remainingCents, 0)
+  assert.equal(points[3].installments, 0)
+  assert.equal(JSON.stringify(bills), before)
+})
+
+test('busca de compras combina cartão, categoria e parcelamento sem alterar valores originais', () => {
+  const purchases = [purchase,
+    { ...purchase, id: 'single', title: 'Café', category: 'Alimentação', subcategory: 'Cafeteria', installments: 1, note: 'Reunião', date: '2026-10-12' },
+    { ...purchase, id: 'foreign', cardId: 'other', title: 'Café', installments: 1 },
+  ]
+  assert.deepEqual(filterCardPurchases(purchases, 'card', 'cafe', 'Alimentação', 'single').map(item => item.id), ['single'])
+  assert.equal(filterCardPurchases(purchases, 'card', 'reuniao', '', 'all').length, 1)
+  assert.equal(filterCardPurchases(purchases, 'card', 'cafeteria', '', 'all').length, 1)
+  assert.equal(filterCardPurchases(purchases, 'card', 'cafe', '', 'installments').length, 0)
+  assert.deepEqual(filterCardPurchases(purchases, 'card', '', '', 'all').map(item => item.id), ['single', 'purchase'])
+  assert.equal(purchases[0], purchase)
+  assert.equal(purchase.amountCents, 10000)
 })

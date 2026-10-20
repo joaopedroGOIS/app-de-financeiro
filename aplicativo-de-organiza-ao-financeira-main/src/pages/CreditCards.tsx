@@ -1,11 +1,13 @@
 import { MoneyInput } from '../components/MoneyInput'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { CsvImport } from '../CsvImportDialog'
 import type { FormEvent } from 'react'
 import { Archive, Check, CreditCard as CreditCardIcon, Plus, Pencil, ShoppingBag, Wallet } from 'lucide-react'
 import { api, currency, dateToday, displayDate, inputMoney, json, monthName, monthShift, percent, toCents } from '../data'
 import type { Account, State, UserCategory, UserSubcategory } from '../data'
 import { cardBills, cardOutstanding, emptyCardState, firstCardBill, installmentPreview, percentageInterestCents } from '../creditCards'
+import { relevantCardBill } from '../creditCards'
+import { CardCommitments, CardPurchaseHistory } from './CreditCardInsights'
 import type { CardBill, CreditCard } from '../creditCards'
 import { Badge, Button, Card, CardHeader, EmptyState, InlineError, Modal, MonthPicker, ProgressBar } from '../ui'
 
@@ -100,13 +102,25 @@ export function CardPaymentForm({ bill, accounts, error, onSubmit }: SaveForm & 
   </form>
 }
 
-export function CreditCardsPage({ state, onUpdated, toast, month, setMonth }: { state: State; onUpdated: ()=>Promise<unknown>; toast: (message:string,tone?:'success'|'error')=>void; month:string; setMonth:(month:string)=>void }) {
+export function CreditCardsPage({ state, onUpdated, toast, month: fallbackMonth }: { state: State; onUpdated: ()=>Promise<unknown>; toast: (message:string,tone?:'success'|'error')=>void; month:string }) {
   const data = state.creditCards ?? emptyCardState()
   const [selectedId,setSelectedId] = useState(''), [showArchived,setShowArchived] = useState(false)
   const [modal,setModal] = useState<'create'|'edit'|'purchase'|'payment'|null>(null), [error,setError] = useState(''), [busy,setBusy] = useState(false)
   const [confirm,setConfirm] = useState<{path:string;message:string}|null>(null)
+  const [billMonths, setBillMonths] = useState<Record<string, string>>({})
+  const invoice = useRef<HTMLDivElement>(null)
   const cards = data.cards.filter(c=>showArchived || !c.archivedAt), selected = cards.find(c=>c.id===selectedId) ?? cards[0]
   const bills = selected ? cardBills(data).filter(b=>b.cardId===selected.id) : []
+  const today = dateToday(), recommended = relevantCardBill(bills, today)
+  // Invoice navigation is local to each card and never changes the reporting month.
+  const manualMonth = selected ? billMonths[selected.id] : undefined
+  const month = manualMonth ?? recommended?.month ?? fallbackMonth
+  const setMonth = (next: string) => { if (selected) setBillMonths(previous => ({ ...previous, [selected.id]: next })) }
+  const resetMonth = () => { if (selected) setBillMonths(previous => { const next = { ...previous }; delete next[selected.id]; return next }) }
+  const revealMonth = (next: string) => {
+    setMonth(next)
+    requestAnimationFrame(() => invoice.current?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }))
+  }
   const bill = bills.find(b=>b.month===month), outstanding = selected ? cardOutstanding(data,selected.id) : 0
   const open = (kind: typeof modal) => { setError(''); setModal(kind) }
   const save = (path:string,method:string) => async (body:any,key:string) => {
@@ -128,16 +142,19 @@ export function CreditCardsPage({ state, onUpdated, toast, month, setMonth }: { 
           <ProgressBar value={percent(outstanding,selected.limitCents)} label="Limite comprometido" tone={outstanding>=selected.limitCents?'danger':''}/>
           {!selected.archivedAt && <Button onClick={()=>open('purchase')} disabled={outstanding>=selected.limitCents}><ShoppingBag size={17}/>Registrar compra</Button>}
         </Card>
-        <Card><CardHeader title="Fatura" description="Despesas organizadas pelo mês do vencimento." action={<MonthPicker label={monthName(month)} onPrevious={()=>setMonth(monthShift(month,-1))} onNext={()=>setMonth(monthShift(month,1))}/>}/>
+        <div ref={invoice} className="credit-invoice-anchor"><Card className="credit-bill-focus"><div className="credit-bill-context"><span>{manualMonth ? 'FATURA SELECIONADA' : recommended?.remainingCents ? recommended.dueDate < today ? 'FATURA VENCIDA EM DESTAQUE' : 'PRÓXIMA FATURA EM ABERTO' : 'HISTÓRICO DE FATURAS'}</span>{manualMonth && recommended && <Button size="sm" variant="ghost" onClick={resetMonth}>Ver fatura recomendada</Button>}</div>
+          <CardHeader title="Fatura" description="Despesas organizadas pelo mês do vencimento." action={<MonthPicker label={monthName(month)} onPrevious={()=>setMonth(monthShift(month,-1))} onNext={()=>setMonth(monthShift(month,1))}/>}/>
+          {!manualMonth && recommended && <p className="card-description">{recommended.remainingCents ? 'Exibimos primeiro a fatura vencida mais antiga ou a próxima com saldo em aberto.' : 'Todas as faturas registradas estão pagas.'} Você pode consultar qualquer mês abaixo.</p>}
           {bills.length>0 && <label className="credit-bill-picker">Ir para uma fatura<select value={bill?month:''} onChange={e=>{if(e.target.value)setMonth(e.target.value)}}><option value="">Selecione o mês</option>{bills.map(b=><option key={b.month} value={b.month}>{monthName(b.month)} · {currency(b.remainingCents)} em aberto</option>)}</select></label>}
           {bill ? <>
             <div className="credit-bill-heading"><div><span>Vencimento em {displayDate(bill.dueDate)}</span><h3>{currency(bill.remainingCents)} em aberto</h3><small>Total {currency(bill.totalCents)} · pago {currency(bill.paidCents)}</small></div><Badge tone={!bill.remainingCents?'success':bill.dueDate<dateToday()?'danger':'warning'}>{!bill.remainingCents?'Paga':bill.dueDate<dateToday()?'Vencida':bill.paidCents?'Pagamento parcial':'Em aberto'}</Badge></div>
             <div className="entry-list">{bill.installments.map(item=>{const purchase=data.purchases.find(p=>p.id===item.purchaseId);return <div className="entry-row" key={item.id}><span className="entry-glyph"><ShoppingBag size={18}/></span><div className="entry-main"><strong>{purchase?.title}</strong><span className="entry-meta">{purchase?.category}{purchase?.subcategory?` · ${purchase.subcategory}`:''} · Parcela {item.number}/{purchase?.installments}</span></div><strong>{currency(item.amountCents)}</strong></div>})}</div>
             {bill.remainingCents>0 && !selected.archivedAt && <Button onClick={()=>open('payment')}><Wallet size={17}/>Registrar pagamento</Button>}
             {data.payments.some(p=>p.cardId===selected.id&&p.billMonth===month) && <><h3 className="credit-payments-title">Pagamentos registrados</h3>{data.payments.filter(p=>p.cardId===selected.id&&p.billMonth===month).map(p=><div className="entry-row" key={p.id}><Check size={18}/><div className="entry-main"><strong>{state.accounts.find(a=>a.id===p.accountId)?.name??'Conta'}</strong><span className="entry-meta">{displayDate(p.date)}{p.note?` · ${p.note}`:''}</span></div><strong className="positive">{currency(p.amountCents)}</strong><button type="button" className="icon-button" aria-label="Desfazer registro de pagamento" onClick={()=>setConfirm({path:`/card-payments/${p.id}`,message:'Desfazer este registro? O saldo voltará à conta de origem, a dívida será reaberta e o limite será recalculado. Nenhuma operação será realizada no banco ou na operadora do cartão.'})}><Archive size={16}/></button></div>)}</>}
-          </> : <EmptyState icon={<CreditCardIcon size={26}/>} title="Sem compras nesta fatura" text="Selecione outro mês ou registre uma compra neste cartão."/>}
-        </Card>
-        {data.purchases.some(p=>p.cardId===selected.id) && <Card><CardHeader title="Compras do cartão" description="Valores totais das compras e parcelamento."/>{data.purchases.filter(p=>p.cardId===selected.id).map(p=><div className="entry-row" key={p.id}><div className="entry-main"><strong>{p.title}</strong><span className="entry-meta">{displayDate(p.date)} · {p.installments===1?'À vista no crédito':`${p.installments} parcelas`}{(p.interestCents??0)>0 && <><br/>{currency(p.amountCents-(p.interestCents??0))} + {currency(p.interestCents??0)} de juros</>}</span></div><strong>{currency(p.amountCents)}</strong>{!selected.archivedAt && <button type="button" className="icon-button" aria-label={`Arquivar compra ${p.title}`} onClick={()=>setConfirm({path:`/card-purchases/${p.id}`,message:`Arquivar “${p.title}” e retirar suas parcelas das faturas? Compras em faturas com pagamentos registrados não podem ser arquivadas.`})}><Archive size={16}/></button>}</div>)}</Card>}
+          </> : <EmptyState icon={<CreditCardIcon size={26}/>} title="Sem parcelas neste mês" text={`Nenhuma compra registrada vence em ${monthName(month)}.`} action={recommended && <Button variant="secondary" onClick={resetMonth}>Ver fatura recomendada</Button>}/>}
+        </Card></div>
+        {bills.length > 0 && <CardCommitments bills={bills} month={month} today={today} selectMonth={revealMonth}/>}
+        <CardPurchaseHistory key={selected.id} data={data} cardId={selected.id} archived={!!selected.archivedAt} selectMonth={revealMonth} onArchive={purchase=>setConfirm({path:`/card-purchases/${purchase.id}`,message:`Arquivar “${purchase.title}” e retirar suas parcelas das faturas? O registro original será preservado. Depois você poderá cadastrar os dados corrigidos.`})}/>
       </>}
     </> : <EmptyState icon={<CreditCardIcon size={30}/>} title="Seu primeiro cartão" text="Cadastre limite, fechamento e vencimento para acompanhar suas compras." action={<Button onClick={()=>open('create')}>Cadastrar cartão</Button>}/>}
     <div className="info-note"><CreditCardIcon size={20}/><p>Compras entram nas despesas do mês do vencimento de cada parcela. Pagamentos saem da conta de origem e reduzem a dívida, sem duplicar despesas. Parcelas futuras também comprometem o limite e o patrimônio. Evite registrar a mesma compra ou dívida novamente em Movimentações ou Bens e dívidas.</p></div>

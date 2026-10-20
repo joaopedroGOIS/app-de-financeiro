@@ -1,5 +1,7 @@
 import { ArrowRight, CircleHelp, Gem, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { currency } from '../data'
+import type { Asset } from '../data'
+import { debtInstallments } from '../debtInstallments'
 import { Button, EmptyState } from '../ui'
 import type { PageProps } from './shared'
 
@@ -46,6 +48,7 @@ export function WealthPage({ state, go, open, editAsset, requestRemove }: PagePr
               <div className="asset-row-body">
                 <strong>{asset.name}</strong>
                 <small>{asset.kind === 'asset' ? 'Bem / ativo' : 'Dívida / passivo'}{asset.note && ` · ${asset.note}`}</small>
+                <DebtSchedule asset={asset}/>
               </div>
               <strong className={asset.kind === 'liability' ? 'negative' : ''}>{asset.kind === 'liability' ? '−' : ''}{currency(asset.amountCents)}</strong>
               <button type="button" className="icon-button" onClick={() => { editAsset(asset); open('asset') }} aria-label={`Editar ${asset.name}`} title="Editar"><Pencil size={16} /></button>
@@ -58,4 +61,11 @@ export function WealthPage({ state, go, open, editAsset, requestRemove }: PagePr
       )}
     </>
   )
+}
+
+export function DebtSchedule({ asset }: { asset: Asset }) {
+  if (asset.kind !== 'liability' || !asset.installmentCount || !asset.firstDueDate) return null
+  const schedule = debtInstallments(asset.amountCents, asset.installmentCount, asset.firstDueDate)
+  if (!schedule.length) return null
+  return <details className="debt-schedule"><summary>{schedule.length} parcelas mensais · ver vencimentos</summary><ul>{schedule.map(item => <li key={item.number}><span>{item.number}/{schedule.length} · {item.dueDate.split('-').reverse().join('/')}</span><strong>{currency(item.amountCents)}</strong></li>)}</ul><p>Calendário planejado. Não representa confirmação de pagamento.</p></details>
 }

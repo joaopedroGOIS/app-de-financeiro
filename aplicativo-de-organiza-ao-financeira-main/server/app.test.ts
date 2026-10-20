@@ -20,6 +20,30 @@ async function setup() {
   return { db, server, request }
 }
 const register = (name: string, email: string) => ({ name, email, password: 'minhasenhasegura123' })
+
+test('dívida parcelada persiste sem duplicar despesas, saldo ou recompensas e isola usuários', async () => {
+  const { db, server, request } = await setup()
+  try {
+    const user = await request('/auth/register', { method: 'POST', transport: true, body: register('Ana', 'ana@debt.example') })
+    const other = await request('/auth/register', { method: 'POST', transport: true, body: register('Bia', 'bia@debt.example') })
+    const sessionHeader = user.body.sessionToken
+    const body = { name: 'Empréstimo', kind: 'liability', amountCents: 200000, note: '', installmentCount: 7, firstDueDate: '2026-11-10' }
+    const created = await request('/assets', { method: 'POST', sessionHeader, body })
+    assert.equal(created.status, 201)
+    const saved = (await request('/state', { sessionHeader })).body
+    assert.equal(saved.assets[0].installmentCount, 7)
+    assert.equal(saved.assets[0].firstDueDate, '2026-11-10')
+    assert.equal(saved.stats.netWorthCents, -200000)
+    assert.equal(saved.entries.length, 0)
+    assert.equal(saved.progress.xp_total, 0)
+    assert.equal((await request('/state', { sessionHeader: other.body.sessionToken })).body.assets.length, 0)
+    assert.equal((await request(`/assets/${created.body.id}`, { method: 'PATCH', sessionHeader: other.body.sessionToken, body })).status, 404)
+    assert.equal((await request('/assets', { method: 'POST', sessionHeader, body: { ...body, firstDueDate: null } })).status, 400)
+    assert.equal((await request('/assets', { method: 'POST', sessionHeader, body: { ...body, kind: 'asset' } })).status, 400)
+    assert.equal((await request(`/assets/${created.body.id}`, { method: 'PATCH', sessionHeader, body: { ...body, installmentCount: 8 } })).status, 200)
+    assert.equal((await request('/state', { sessionHeader })).body.assets[0].installmentCount, 8)
+  } finally { server.close(); db.close() }
+})
 test('cabeçalho de sessão próprio mantém login sem Cookie nem Authorization', async () => {
   const { db, server, request } = await setup()
   try {
