@@ -1,4 +1,5 @@
 import { MoneyInput } from './components/MoneyInput'
+import { debtInstallments } from './debtInstallments'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Check, CircleAlert } from 'lucide-react'
@@ -158,12 +159,16 @@ export function AssetForm({ initial, onSubmit, error }: FormProps<Asset>) {
   const [kind, setKind] = useState<Asset['kind']>(initial?.kind ?? 'asset')
   const [value, setValue] = useState(initial ? inputMoney(initial.amountCents) : '')
   const [note, setNote] = useState(initial?.note ?? '')
+  const [parcelled, setParcelled] = useState(!!initial?.installmentCount)
+  const [installmentCount, setInstallmentCount] = useState(initial?.installmentCount ?? 7)
+  const [firstDueDate, setFirstDueDate] = useState(initial?.firstDueDate ?? dateToday())
+  const schedule = kind === 'liability' && parcelled ? debtInstallments(toCents(value), installmentCount, firstDueDate) : []
   const [pending, setPending] = useState(false)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setPending(true)
-    await onSubmit({ name, kind, amountCents: toCents(value), note })
-    setPending(false)
+    try { await onSubmit({ name, kind, amountCents: toCents(value), note, installmentCount: kind === 'liability' && parcelled ? installmentCount : null, firstDueDate: kind === 'liability' && parcelled ? firstDueDate : null }) }
+    finally { setPending(false) }
   }
   return (
     <form className="form" onSubmit={submit}>
@@ -171,14 +176,22 @@ export function AssetForm({ initial, onSubmit, error }: FormProps<Asset>) {
       <label>Nome
         <input required maxLength={70} autoFocus placeholder={kind === 'asset' ? 'Ex.: Veículo' : 'Ex.: Empréstimo'} value={name} onChange={event => setName(event.target.value)} />
       </label>
-      <label>Valor (R$)
-        <MoneyInput required min="0.01" value={value} onValueChange={setValue} />
+      <label>{kind === 'liability' ? 'Valor total da dívida a pagar (R$)' : 'Valor (R$)'}
+        <MoneyInput required min="0.01" max="1000000000" value={value} onValueChange={setValue} />
       </label>
+      {kind === 'liability' && <>
+        <p className="form-description">Informe o total a pagar, incluindo os juros já combinados, se houver. Não cadastre aqui uma dívida que já está nos seus cartões.</p>
+        <label className="check-field"><input type="checkbox" checked={parcelled} onChange={event => setParcelled(event.target.checked)} /><span>Esta dívida será paga em parcelas mensais</span></label>
+        {parcelled && <><div className="form-row"><label>Número de parcelas<input type="number" min={1} max={360} step={1} required value={installmentCount} onChange={event => setInstallmentCount(Number(event.target.value))} /></label><label>Primeiro vencimento<input type="date" min="1900-01-01" required value={firstDueDate} onChange={event => setFirstDueDate(event.target.value)} /></label></div>
+          {schedule.length > 0 ? <details className="debt-schedule" open><summary>{installmentCount} parcelas · total {currency(toCents(value))}</summary><ul>{schedule.map(item => <li key={item.number}><span>{item.number}/{installmentCount} · {item.dueDate.split('-').reverse().join('/')}</span><strong>{currency(item.amountCents)}</strong></li>)}</ul></details> : <p className="form-description">Informe um valor, a quantidade de parcelas e uma data válidos. Cada parcela deve ter pelo menos R$ 0,01.</p>}
+          <p className="form-description">O calendário organiza a dívida. As parcelas não debitam contas nem geram despesas automaticamente; o total entra uma única vez no patrimônio.</p>
+        </>}
+      </>}
       <label>Observação <span className="optional">(opcional)</span>
         <input maxLength={200} value={note} onChange={event => setNote(event.target.value)} />
       </label>
       <FormError error={error} />
-      <Button type="submit" wide disabled={pending}>
+      <Button type="submit" wide disabled={pending || (kind === 'liability' && parcelled && !schedule.length)}>
         <Check size={17} />{pending ? 'Salvando...' : 'Salvar item'}
       </Button>
     </form>

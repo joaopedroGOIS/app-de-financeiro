@@ -1,0 +1,32 @@
+.credit-invoice-anchor{scroll-margin-top:100px}.credit-bill-focus{border-color:var(--border-strong);background:linear-gradient(120deg,var(--primary-soft),transparent 70%),var(--surface)}
+.credit-bill-context{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+.credit-bill-context>span{color:var(--primary-text);font-size:11px;font-weight:800;letter-spacing:1.2px}
+.credit-forecast-period{display:flex;align-items:center;gap:10px;color:var(--text-secondary);font-size:12px}
+.credit-forecast-period select{width:auto;min-width:100px;padding:8px}
+.credit-purchase-filters select,.credit-forecast-period select{border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-sunken);color:var(--text);padding:10px;font:inherit;min-height:40px}
+.credit-purchase-filters select:focus-visible,.credit-forecast-period select:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.credit-forecast-total{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:20px 0}
+.credit-forecast-total strong{font-size:26px;letter-spacing:-.6px}.credit-forecast-total span{font-size:12px;color:var(--text-secondary)}
+.credit-forecast-scroll{overflow-x:auto;padding:8px 0 12px}
+.credit-forecast-bars{display:flex;gap:10px;align-items:stretch}
+.credit-forecast-month{display:flex;flex:1;min-width:0;flex-direction:column;align-items:center;gap:10px;padding:10px 5px;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer}
+.credit-forecast-month:hover,.credit-forecast-month[aria-pressed=true]{background:var(--primary-soft);border-color:var(--border-strong)}
+.credit-forecast-month:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.credit-forecast-month>strong{font-size:11px;white-space:nowrap;color:var(--text)}
+.credit-forecast-month>span:last-child{font-size:11px;text-transform:capitalize}.credit-forecast-month small{display:block;margin-top:4px;color:var(--text-muted)}
+.credit-forecast-track{height:110px;width:28px;display:flex;align-items:flex-end;background:var(--surface-sunken);border-radius:9px;overflow:hidden}
+.credit-forecast-track i{display:block;min-height:0;width:100%;border-radius:9px;background:linear-gradient(var(--primary),var(--primary-soft-strong))}
+.credit-forecast-outside{font-size:12px;color:var(--text-secondary);padding:12px;background:var(--surface-sunken);border-radius:10px;margin-top:12px}
+.credit-purchase-filters{display:grid;grid-template-columns:minmax(160px,2fr) minmax(120px,1fr) minmax(120px,1fr);gap:12px;align-items:end;margin:18px 0}
+.credit-purchase-filters label{font-size:12px;color:var(--text-secondary);display:flex;flex-direction:column;gap:7px}.credit-purchase-filters select{width:100%}
+.credit-purchase-count{font-size:12px;color:var(--text-secondary);margin:14px 0}
+.credit-purchase-row{display:grid;grid-template-columns:40px minmax(0,1fr) max-content auto;gap:12px;align-items:center}.credit-purchase-row>.btn{flex-shrink:0}.credit-purchase-row>.entry-main{min-width:0}.credit-purchase-row>.entry-main strong{overflow-wrap:anywhere;white-space:normal;text-overflow:clip}.credit-purchase-row>strong{white-space:nowrap}
+.credit-purchase-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}
+.credit-purchase-summary div{background:var(--surface-sunken);padding:12px;border-radius:10px}.credit-purchase-summary dt{font-size:11px;color:var(--text-secondary)}.credit-purchase-summary dd{margin:7px 0 0;font-weight:700;overflow-wrap:anywhere}
+.credit-purchase-note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:var(--text-secondary)}
+.credit-purchase-installments{list-style:none;padding:0;margin:12px 0;max-height:300px;overflow-y:auto}
+.credit-purchase-installments li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)}
+.credit-purchase-installments small{display:block;margin:6px 0;color:var(--text-secondary)}.credit-purchase-installments strong{font-size:13px}
+.credit-purchase-correction{border-top:1px solid var(--border);margin-top:20px;padding-top:16px}.credit-purchase-correction p{margin:10px 0}
+.debt-schedule{margin-top:14px;font-size:12px;max-width:500px}.debt-schedule summary{cursor:pointer;color:var(--primary-text);line-height:1.5}.debt-schedule ul{list-style:none;max-height:240px;overflow:auto;padding:0;margin:10px 0}.debt-schedule li{display:flex;justify-content:space-between;gap:14px;border-bottom:1px solid var(--border);padding:9px 0}.debt-schedule li strong{font-size:12px!important;white-space:nowrap}.debt-schedule p{color:var(--text-secondary);font-size:11px}.asset-row:has(.debt-schedule){align-items:flex-start}.asset-row-body:has(.debt-schedule){min-width:0}
+@media(max-width:640px){.credit-purchase-filters{grid-template-columns:1fr 1fr}.credit-purchase-filters .search-field{grid-column:1/-1}.credit-purchase-row{grid-template-columns:34px minmax(0,1fr) auto;gap:8px 10px}.credit-purchase-row>.entry-main{grid-column:2/-1;grid-row:1}.credit-purchase-row>.entry-glyph{grid-column:1;grid-row:1;align-self:start}.credit-purchase-row>strong{grid-column:2;grid-row:2}.credit-purchase-row>.btn{grid-column:3;grid-row:2;margin-left:0}.credit-purchase-summary{grid-template-columns:1fr}.credit-bill-context{align-items:flex-start;flex-direction:column}.credit-forecast-total strong{font-size:23px}.credit-forecast-period{flex-wrap:wrap}}

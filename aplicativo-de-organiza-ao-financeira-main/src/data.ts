@@ -6,7 +6,7 @@ export type Account = { id: string; name: string; type: 'corrente' | 'poupança'
 export type Entry = { id: string; accountId: string; cardId?: string; cardPaymentId?: string; settled?: boolean; title: string; category: string; subcategory?: string; type: 'income' | 'expense' | 'adjustment'; amountCents: number; date: string; note: string }
 export type UserCategory = { id: string; name: string; type: Entry['type']; archivedAt: string | null }
 export type UserSubcategory = { id: string; categoryId: string; name: string; archivedAt: string | null }
-export type Asset = { id: string; name: string; kind: 'asset' | 'liability'; amountCents: number; note: string }
+export type Asset = { id: string; name: string; kind: 'asset' | 'liability'; amountCents: number; note: string; installmentCount?: number | null; firstDueDate?: string | null }
 export type Goal = { id: string; title: string; kind: 'meta' | 'sonho'; targetCents: number; savedCents: number; icon: string; deadline: string | null; milestones: number[] }
 /** `nextLevelXp` é `null` enquanto a curva oficial de XP não estiver configurada no servidor. */
 export type Progress = { xp_total: number; level: number; graninha_balance: number; nextLevelXp: number | null; currentLevelXp?: number | null; curveVersion?: string | null }
@@ -210,7 +210,7 @@ async function getState(): Promise<State> {
     categories: rows<any>(categories).map(c => ({ id:c.id,name:c.name,type:c.type,archivedAt:c.archived_at })),
     subcategories: rows<any>(subcategories).map(c => ({ id:c.id,categoryId:c.category_id,name:c.name,archivedAt:c.archived_at })),
     archivedEntries: rows<any>(archived).map(e => ({ id:e.id,accountId:e.account_id,title:e.title,category:e.category,subcategory:e.subcategory ?? '',type:e.type,amountCents:Number(e.amount_cents),date:e.date,note:e.note,archivedAt:e.archived_at })),
-    assets: assetRows.map(a => ({ id:a.id,name:a.name,kind:a.kind,amountCents:Number(a.amount_cents),note:a.note })),
+    assets: assetRows.map(a => ({ id:a.id,name:a.name,kind:a.kind,amountCents:Number(a.amount_cents),note:a.note,installmentCount:a.installment_count ?? null,firstDueDate:a.first_due_date ?? null })),
     goals: rows<any>(goals).map(g => ({ id:g.id,title:g.title,kind:g.kind,targetCents:Number(g.target_cents),icon:g.icon,deadline:g.deadline,savedCents:contributionsByGoal.filter(c=>c.goal_id===g.id).reduce((sum,c)=>sum+Number(c.amount_cents),0),milestones:milestoneRows.filter(m=>m.goal_id===g.id).map(m=>Number(m.milestone)) })),
     progress: gamification?.progress ?? { xp_total:Number(progressRow.xp_total ?? 0),level:Number(progressRow.level ?? 1),graninha_balance:Number(progressRow.graninha_balance ?? 0),nextLevelXp:null },
     preferences: { theme:(one<any>(preferences)?.theme ?? null) as ThemeMode | null },
@@ -335,11 +335,11 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   }
   const assetId=path.match(/^\/assets\/([^/]+)$/)
   if (path==='/assets' && method==='POST') {
-    const user=await authRequest('user',undefined,true), result=await rest<any[]>('assets','POST','',{user_id:user.id,name:body.name,kind:body.kind,amount_cents:body.amountCents,note:body.note})
+    const user=await authRequest('user',undefined,true), result=await rest<any[]>('assets','POST','',{user_id:user.id,name:body.name,kind:body.kind,amount_cents:body.amountCents,note:body.note,installment_count:body.installmentCount ?? null,first_due_date:body.firstDueDate ?? null})
     return {id:result[0]?.id} as T
   }
   if (assetId && method==='PATCH') {
-    await rest('assets','PATCH',query({id:`eq.${decodeURIComponent(assetId[1])}`}),{name:body.name,kind:body.kind,amount_cents:body.amountCents,note:body.note},{prefer:'return=minimal'})
+    await rest('assets','PATCH',query({id:`eq.${decodeURIComponent(assetId[1])}`}),{name:body.name,kind:body.kind,amount_cents:body.amountCents,note:body.note,installment_count:body.installmentCount ?? null,first_due_date:body.firstDueDate ?? null},{prefer:'return=minimal'})
     return {ok:true} as T
   }
   if (assetId && method==='DELETE') { await rest('assets','DELETE',query({id:`eq.${decodeURIComponent(assetId[1])}`})); return {ok:true} as T }

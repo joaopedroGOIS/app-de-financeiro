@@ -475,7 +475,7 @@ export default function App() {
 
           {page === 'cards' && <>
             <PageHeading eyebrow="CRÉDITO ORGANIZADO" title="Cartões de crédito" description="Acompanhe compras, parcelas e pagamentos sem perder de vista suas contas." />
-            <CreditCardsPage state={state} month={month} setMonth={setMonth} toast={showToast} onUpdated={async () => { await refresh(); setAnalysis({}) }} />
+            <CreditCardsPage state={state} month={month} toast={showToast} onUpdated={async () => { await refresh(); setAnalysis({}) }} />
           </>}
 
           {page === 'wealth' && <>

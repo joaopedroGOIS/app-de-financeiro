@@ -29,6 +29,9 @@ export function openDatabase(filename = process.env.DB_PATH || '.data/granae.sql
     -- escolher, assim o cliente nunca sobrescreve a preferência local com um padrão.
     CREATE TABLE IF NOT EXISTS user_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, theme TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   `)
+  const assetColumns = db.prepare('PRAGMA table_info(assets)').all() as { name: string }[]
+  if (!assetColumns.some(column => column.name === 'installment_count')) db.exec('ALTER TABLE assets ADD COLUMN installment_count INTEGER')
+  if (!assetColumns.some(column => column.name === 'first_due_date')) db.exec('ALTER TABLE assets ADD COLUMN first_due_date TEXT')
   return db
 }
 export type DB = ReturnType<typeof openDatabase>
