@@ -1,4 +1,3 @@
-import { GooseCompanion } from '../components/GooseCompanion'
 import { AdventureArt } from './AdventureArt'
 import { useState } from 'react'
 import { FinancialReports, ReportDetails } from './FinancialReports'
@@ -194,7 +193,6 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
         <button type="button" onClick={() => go('goals')}><span><Target size={22} /></span>Construir objetivos</button>
         <button type="button" onClick={() => go('journey')}><span><Award size={22} /></span>Ver evolução</button>
       </nav>
-      <GooseCompanion />
       <div className="dashboard-grid">
         <FinancialReports key={month} entries={state.entries} month={month} />
 
