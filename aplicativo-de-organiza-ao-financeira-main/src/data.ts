@@ -249,6 +249,22 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   }
   if (!sessionToken) throw new ApiError('Sessão encerrada. Entre novamente.',401,'SESSION_MISSING')
   if (path==='/state' && method==='GET') return await getState() as T
+  if (path.startsWith('/budgets?') && method==='GET') {
+    const month=new URLSearchParams(path.split('?')[1]).get('month')
+    if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new ApiError('Mês inválido.',400)
+    return await rest('rpc/monthly_budget_state','POST','',{p_month:`${month}-01`}) as T
+  }
+  if (path==='/budgets' && method==='POST') {
+    const user=await authRequest('user',undefined,true)
+    await rest('monthly_budgets','POST','on_conflict=user_id,month,category',{user_id:user.id,month:`${body.month}-01`,category:String(body.category).trim(),limit_cents:body.limitCents},{prefer:'resolution=merge-duplicates,return=minimal'})
+    return {ok:true} as T
+  }
+  const budgetId=path.match(/^\/budgets\/([^/]+)$/)
+  if (budgetId && method==='DELETE') {
+    const user=await authRequest('user',undefined,true)
+    await rest('monthly_budgets','DELETE',query({id:`eq.${decodeURIComponent(budgetId[1])}`,user_id:`eq.${user.id}`}))
+    return {ok:true} as T
+  }
   if (path==='/profile' && method==='PATCH') {
     await rest('profiles','PATCH',query({id:`eq.${(await authRequest('user',undefined,true)).id}`}),{name:body.name},{prefer:'return=minimal'})
     return {ok:true} as T

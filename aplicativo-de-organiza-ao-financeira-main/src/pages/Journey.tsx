@@ -53,9 +53,9 @@ export function JourneyPage({ state, go, onUpdated }: PageProps & { onUpdated?:(
         </div>
       </div>
 
-      <MissionsSection missions={state.missions}/>
+      <MissionsSection missions={state.missions} onRegister={()=>go('entries')}/>
       <div className="journey-details">
-        {onUpdated && <FinancialRoutines state={state} onUpdated={onUpdated}/>}
+        {onUpdated && <section id="financial-routines" tabIndex={-1}><FinancialRoutines state={state} onUpdated={onUpdated}/></section>}
         <RewardHistory game={state.gamification} limit={50}/>
         <Card>
           <CardHeader title="Conquistas reais" description="Marcos de progresso dos seus objetivos" icon={Medal} />
@@ -78,7 +78,7 @@ export function JourneyPage({ state, go, onUpdated }: PageProps & { onUpdated?:(
         </Card>
 
         <Card>
-          <CardHeader title="Uma evolução de verdade." description="XP, Graninha e recompensas com regras versionadas e processamento no servidor." icon={Gem} />
+          <CardHeader title="Uma evolução de verdade." description="Seus hábitos se transformam em experiência e conquistas." icon={Gem} />
           <p className="card-description">
             {state.gamification?.configVersion ? 'Suas recompensas seguem as regras ativas. Cada conquista fica registrada no seu histórico.' : 'As regras de recompensas estão em preparação. Você já pode organizar suas finanças e acompanhar seus objetivos.'}
           </p>

@@ -1,0 +1,13 @@
+.quest-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.quest-panel{display:flex;flex-direction:column;gap:16px;min-width:0;position:relative;overflow:hidden}
+.quest-panel:before{content:'';height:3px;position:absolute;inset:0 0 auto;background:linear-gradient(90deg,var(--primary),transparent)}
+.quest-heading{display:flex;gap:14px;align-items:center}.quest-heading h3{margin:4px 0 0;font-size:19px}.quest-heading small{font-size:10px;font-weight:800;letter-spacing:1px;color:var(--text-secondary)}
+.quest-emblem{display:grid;place-items:center;width:48px;height:48px;flex-shrink:0;background:var(--primary-soft);color:var(--primary-text);border:1px solid var(--border-strong);border-radius:16px}
+.quest-labels,.quest-prizes,.quest-actions{display:flex;gap:10px;flex-wrap:wrap}.quest-period{display:flex;align-items:center;gap:8px;color:var(--text-secondary);font-size:12px;margin:0}
+.quest-objective p{display:flex;justify-content:space-between;gap:12px;margin:0 0 9px;font-size:13px}.quest-objective span{color:var(--text-secondary)}
+.quest-prizes{margin-top:auto;padding-top:6px}.quest-prizes>span{display:flex;gap:6px;align-items:center;padding:8px 10px;background:var(--primary-soft);border-radius:10px;font-size:12px;color:var(--primary-text)}
+.quest-footer{border-top:1px solid var(--border);padding-top:12px}.quest-footer small{display:block;color:var(--text-secondary);line-height:1.6}.quest-actions{margin-top:12px}
+.quest-guide{display:flex;gap:14px;padding:20px;background:var(--primary-soft);border:1px solid var(--border);border-radius:18px;margin:18px 0}.quest-guide>svg{flex-shrink:0;color:var(--primary-text)}.quest-guide p{font-size:13px;line-height:1.65;margin:7px 0}.quest-guide small{color:var(--text-secondary);line-height:1.6}
+.quest-history{margin-top:22px}.quest-history summary{cursor:pointer;padding:14px 0;font-weight:700}.quest-history>p{color:var(--text-secondary);font-size:13px}.quest-panel-complete .quest-emblem{color:var(--success)}
+#financial-routines{scroll-margin-top:100px;min-width:0}
+@media(max-width:700px){.quest-grid{grid-template-columns:1fr}.quest-heading h3{font-size:17px}.missions-section .section-heading{align-items:flex-start;gap:12px;flex-direction:column}}
