@@ -23,3 +23,19 @@ test('formulário exige confirmação explícita de economia real e explica inde
  assert.match(html,/5 XP uma vez por dia/)
  assert.match(html,/não movimenta contas/)
 })
+
+test('progresso excedente não produz faltas negativas e conclusão não oferece ações',()=>{
+ const html=renderToStaticMarkup(<MissionCard mission={{...mission,days:9,reviews:3,status:'completed'}} onRegister={()=>{}}/>)
+ assert.match(html,/5\/5/)
+ assert.match(html,/1\/1/)
+ assert.doesNotMatch(html,/Ver movimentações|Revisar meus registros|Faltam/)
+})
+test('missão ativa oferece próximos passos e indisponibilidade não parece ausência de missões',()=>{
+ const html=renderToStaticMarkup(<MissionCard mission={mission} onRegister={()=>{}}/>)
+ assert.match(html,/Ver movimentações/)
+ assert.match(html,/Revisar meus registros/)
+ assert.match(html,/Faltam 1 dia/)
+ assert.doesNotMatch(html,/href="#/)
+ assert.match(renderToStaticMarkup(<MissionsSection/>),/Missões indisponíveis/)
+ assert.match(renderToStaticMarkup(<MissionsSection missions={{current:[],previous:[],timezone:'America\/Sao_Paulo'}}/>),/Nenhuma missão ativa/)
+})
