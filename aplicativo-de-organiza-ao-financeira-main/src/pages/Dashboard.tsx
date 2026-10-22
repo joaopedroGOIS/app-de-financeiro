@@ -1,5 +1,6 @@
 import { AdventureArt } from './AdventureArt'
 import { MonthlyBudgets } from '../MonthlyBudgets'
+import { RecurringExpenses } from '../RecurringExpenses'
 import { useState } from 'react'
 import { FinancialReports, ReportDetails } from './FinancialReports'
 import { Activity, ArrowDownLeft, ArrowUpRight, Award, Banknote, BookOpen, CalendarClock, CarFront, Clapperboard, Coins, Flame, Gem, HeartPulse, House, Landmark, Pencil, Plus, Repeat2, Shapes, ShieldCheck, ShoppingBag, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Utensils, Wallet } from 'lucide-react'
@@ -26,7 +27,7 @@ export function CategoryGlyph({ name, type, size = 18 }: { name: string; type?: 
   return <Icon size={size} strokeWidth={2} />
 }
 
-export function DashboardPage({ state, month, go, open, editEntry, editGoal, contributeTo, requestRemove }: PageProps & { month: string }) {
+export function DashboardPage({ state, month, go, open, editEntry, editGoal, contributeTo, requestRemove, onUpdated }: PageProps & { month: string; onUpdated?:()=>Promise<unknown> }) {
   const [reportCategory, setReportCategory] = useState<string | null>(null)
   const firstName = state.user.name.split(' ')[0]
   const today = dateToday()
@@ -188,6 +189,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
       <RewardHistory game={state.gamification} limit={3}/>
       <div className="below-overview-monthly-summary">{monthlySummary}</div>
       <MonthlyBudgets key={`budget:${month}`} month={month} state={state}/>
+      {onUpdated&&<RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={onUpdated} compact onManage={()=>go('entries')}/>}
 
       <nav className="adventure-trail" aria-label="Sua jornada financeira">
         <div><span className="hero-kicker">SUA JORNADA</span><h3>Um passo de cada vez.</h3><p>Organize o presente e acompanhe suas conquistas.</p></div>
