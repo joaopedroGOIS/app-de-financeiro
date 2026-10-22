@@ -132,6 +132,7 @@ function Authentication({ onReady, sessionError = '',notice='',preferLogin=false
 
 export default function App() {
   const [recovery,setRecovery]=useState(initializeRecovery)
+  const [recoveryEpoch,setRecoveryEpoch]=useState(0)
   const [accessNotice,setAccessNotice]=useState('')
   const [state, setState] = useState<State | null>(null)
   const [checking, setChecking] = useState(true)
@@ -211,7 +212,12 @@ export default function App() {
 
 
   useEffect(() => {
-    const syncPage = () => { setPage(pageFromHash()); setReturnTo(null) }
+    const syncPage = () => {
+      const incoming=initializeRecovery(true)
+      setRecovery(incoming)
+      if(incoming){setRecoveryEpoch(n=>n+1);setChecking(false);setState(null);setModal(null);setGlobalSearchOpen(false)}
+      setPage(pageFromHash());setReturnTo(null)
+    }
     window.addEventListener('popstate', syncPage)
     window.addEventListener('hashchange', syncPage)
     return () => { window.removeEventListener('popstate', syncPage); window.removeEventListener('hashchange', syncPage) }
@@ -319,7 +325,7 @@ export default function App() {
     }
   }
 
-  if(recovery)return <PasswordAccess initial={recovery} onClose={()=>{leaveRecovery();setRecovery(null);setState(null);setChecking(false);setAccessNotice('Entre com seu e-mail e senha para continuar.')}} onComplete={()=>{leaveRecovery();setRecovery(null);setState(null);setChecking(false);setAccessNotice('Senha atualizada. Entre com sua nova senha.')}}/>
+  if(recovery)return <PasswordAccess key={recoveryEpoch} initial={recovery} onClose={()=>{leaveRecovery();setRecovery(null);setState(null);setChecking(false);setAccessNotice('Entre com seu e-mail e senha para continuar.')}} onComplete={()=>{leaveRecovery();setRecovery(null);setState(null);setChecking(false);setAccessNotice('Senha atualizada. Entre com sua nova senha.')}}/>
   if (checking) return <LoadingScreen />
 
   if (!state) return <Authentication onReady={() => boot(true)} sessionError={sessionError} notice={accessNotice} preferLogin={!!accessNotice}/>
@@ -622,5 +628,6 @@ export default function App() {
     </div>
   )
 }
+
 
 
