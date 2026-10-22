@@ -463,7 +463,7 @@ export default function App() {
               eyebrow="SEU HISTÓRICO"
               title="Movimentações"
               description="Receitas, despesas e ajustes organizados com clareza."
-              action={<div className="dashboard-page-actions">{monthPicker}<CsvImport state={state} onUpdated={refresh}/><Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button></div>}
+              action={<div className="entry-page-actions">{monthPicker}<CsvImport state={state} onUpdated={refresh}/><Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button></div>}
             />
             <RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={refresh}/>
             <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={null} />
@@ -613,4 +613,5 @@ export default function App() {
     </div>
   )
 }
+
 
