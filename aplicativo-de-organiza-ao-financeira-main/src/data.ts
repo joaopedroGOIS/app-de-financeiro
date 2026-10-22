@@ -249,6 +249,19 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   }
   if (!sessionToken) throw new ApiError('Sessão encerrada. Entre novamente.',401,'SESSION_MISSING')
   if (path==='/state' && method==='GET') return await getState() as T
+  if (path.startsWith('/recurring?') && method==='GET') {
+    const month=new URLSearchParams(path.split('?')[1]).get('month')
+    if (!month || !/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(month)) throw new ApiError('Mês inválido.',400)
+    return await rest('rpc/recurring_expense_state','POST','',{p_month:`${month}-01`}) as T
+  }
+  if (path==='/recurring' && method==='POST') return await rest('rpc/create_recurring_expense','POST','',{p_title:body.title,p_category:body.category,p_amount_cents:body.amountCents,p_due_day:body.dueDay,p_start_month:`${body.startMonth}-01`,p_key:idempotencyKey(options)}) as T
+  const recurringAction=path.match(/^\/recurring\/([^/]+)\/(pay|reverse|stop)$/)
+  if (recurringAction && method==='POST') {
+    const p_id=decodeURIComponent(recurringAction[1])
+    if(recurringAction[2]==='stop') return await rest('rpc/stop_recurring_expense','POST','',{p_id}) as T
+    if(recurringAction[2]==='reverse') return await rest('rpc/reverse_recurring_payment','POST','',{p_id,p_month:`${body.month}-01`}) as T
+    return await rest('rpc/pay_recurring_expense','POST','',{p_id,p_month:`${body.month}-01`,p_account_id:body.accountId,p_amount_cents:body.amountCents,p_date:body.date,p_category:body.category,p_existing_entry_id:body.existingEntryId??null}) as T
+  }
   if (path.startsWith('/budgets?') && method==='GET') {
     const month=new URLSearchParams(path.split('?')[1]).get('month')
     if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new ApiError('Mês inválido.',400)

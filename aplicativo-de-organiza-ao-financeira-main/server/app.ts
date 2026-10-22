@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express'
 import { randomBytes, randomUUID, createHash, scryptSync, timingSafeEqual } from 'node:crypto'
 import { z, ZodError } from 'zod'
 import { debtInstallments } from '../src/debtInstallments'
+import { recurringDueDate } from '../src/recurring'
 import type { DB } from './db'
 import { analyzeDream, crossedMilestones, reserveAndNetWorth, streakFromDates } from './domain'
 
@@ -26,6 +27,8 @@ const contributionSchema = z.object({ amountCents: cents.positive(), date, note:
 const themeSchema = z.object({ theme: z.enum(['dark', 'light', 'system']) })
 const budgetMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
 const budgetSchema = z.object({month:budgetMonth,category:text(40),limitCents:cents.positive()})
+const recurringSchema=z.object({title:text(80),category:text(40),amountCents:cents.positive(),dueDay:z.number().int().min(1).max(31),startMonth:budgetMonth})
+const recurringPaymentSchema=z.object({month:budgetMonth,accountId:z.string().uuid(),amountCents:cents.positive(),date,category:text(40),existingEntryId:z.string().uuid().nullable().optional()})
 function asRow(value: unknown): Row { return value as Row }
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }) }
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
@@ -148,6 +151,56 @@ export function createApp(db: DB) {
     const budgets=db.prepare('SELECT id,category,limit_cents AS limitCents FROM monthly_budgets WHERE user_id=? AND month=? ORDER BY category').all(req.userId,month)
     const spending=db.prepare("SELECT category,SUM(amount_cents) AS spentCents FROM entries WHERE user_id=? AND type='expense' AND archived_at IS NULL AND substr(date,1,7)=? GROUP BY category").all(req.userId,month)
     res.json({budgets,spending})
+  })
+  app.get('/api/recurring',(req,res)=>{
+    const month=budgetMonth.parse(req.query.month),d=today()
+    const templates=(db.prepare('SELECT * FROM recurring_expenses WHERE user_id=? ORDER BY title').all(req.userId) as Row[]).map(r=>({id:String(r.id),title:String(r.title),category:String(r.category),amountCents:Number(r.amount_cents),dueDay:Number(r.due_day),startMonth:String(r.start_month),stoppedOn:r.stopped_on?String(r.stopped_on):null}))
+    const items=templates.flatMap(r=>{
+      const dueDate=recurringDueDate(month,r.dueDay)
+      const e=db.prepare('SELECT e.* FROM recurring_payments p JOIN entries e ON e.id=p.entry_id AND e.user_id=p.user_id WHERE p.user_id=? AND p.recurring_id=? AND p.month=?').get(req.userId,r.id,month) as Row|undefined
+      if(r.startMonth>month || (r.stoppedOn&&dueDate>r.stoppedOn&&!e))return []
+      return [{...r,dueDate,entryId:e?.id??null,paidAmountCents:e?.amount_cents??null,paidCategory:e?.category??null,paymentDate:e?.date??null,status:e?(e.archived_at||e.type!=='expense'?'reversed':'paid'):dueDate<d?'overdue':'pending'}]
+    })
+    res.json({today:d,templates,items})
+  })
+  app.post('/api/recurring',(req,res)=>{
+    const r=recurringSchema.parse(req.body)
+    const result=replayable(db,req.userId,req.get('Idempotency-Key'),()=>{
+      const id=randomUUID();db.prepare('INSERT INTO recurring_expenses(id,user_id,title,category,amount_cents,due_day,start_month) VALUES(?,?,?,?,?,?,?)').run(id,req.userId,r.title,r.category,r.amountCents,r.dueDay,r.startMonth);return {id}
+    });res.json(result)
+  })
+  app.post('/api/recurring/:id/stop',(req,res)=>{
+    const result=db.prepare('UPDATE recurring_expenses SET stopped_on=COALESCE(stopped_on,?) WHERE id=? AND user_id=?').run(today(),req.params.id,req.userId)
+    if(!result.changes)fail(404,'Recorrência não encontrada.');res.json({ok:true})
+  })
+  app.post('/api/recurring/:id/pay',(req,res)=>{
+    const p=recurringPaymentSchema.parse(req.body);notFuture(p.date);accountOf(db,req.userId,p.accountId)
+    const result=db.transaction(()=>{
+      const r=db.prepare('SELECT * FROM recurring_expenses WHERE id=? AND user_id=?').get(req.params.id,req.userId) as Row|undefined
+      if(!r)fail(404,'Recorrência não encontrada.')
+      if(p.month<String(r.start_month))fail(400,'Mês inválido.')
+      const e=db.prepare('SELECT e.* FROM recurring_payments p JOIN entries e ON e.id=p.entry_id AND e.user_id=p.user_id WHERE p.user_id=? AND p.recurring_id=? AND p.month=?').get(req.userId,r.id,p.month) as Row|undefined
+      if(e&&!e.archived_at&&e.type==='expense')return {id:e.id,alreadyPaid:true}
+      if(!e&&r.stopped_on&&recurringDueDate(p.month,Number(r.due_day))>String(r.stopped_on))fail(400,'Esta ocorrência foi encerrada.')
+      if(p.existingEntryId){
+        if(e)fail(400,'Reative o lançamento original desta ocorrência.')
+        const existing=db.prepare("SELECT id FROM entries WHERE id=? AND user_id=? AND type='expense' AND archived_at IS NULL AND date<=?").get(p.existingEntryId,req.userId,today()) as Row|undefined
+        if(!existing)fail(400,'Selecione uma despesa ativa da sua conta.')
+        if(db.prepare('SELECT entry_id FROM recurring_payments WHERE entry_id=?').get(existing.id))fail(400,'Esta movimentação já está vinculada a outro compromisso.')
+        db.prepare('INSERT INTO recurring_payments(user_id,recurring_id,month,entry_id) VALUES(?,?,?,?)').run(req.userId,r.id,p.month,existing.id)
+        return {id:existing.id,linked:true}
+      }
+      const id=e?String(e.id):randomUUID()
+      if(e){db.prepare("UPDATE entries SET account_id=?,title=?,category=?,type='expense',amount_cents=?,date=?,archived_at=NULL WHERE id=? AND user_id=?").run(p.accountId,r.title,p.category,p.amountCents,p.date,id,req.userId);event(db,req.userId,'financial_entry_updated',p.date,'entry',id,`recurring-update:${randomUUID()}`)}
+      else {db.prepare("INSERT INTO entries(id,user_id,account_id,title,category,type,amount_cents,date,note) VALUES(?,?,?,?,?,'expense',?,?,?)").run(id,req.userId,p.accountId,r.title,p.category,p.amountCents,p.date,`Despesa recorrente · referência ${p.month}`);db.prepare('INSERT INTO recurring_payments(user_id,recurring_id,month,entry_id) VALUES(?,?,?,?)').run(req.userId,r.id,p.month,id);event(db,req.userId,'expense_recorded',p.date,'entry',id,`entry:${id}:created`)}
+      return {id}
+    })();res.json(result)
+  })
+  app.post('/api/recurring/:id/reverse',(req,res)=>{
+    const month=budgetMonth.parse(req.body.month)
+    const e=db.prepare('SELECT e.* FROM recurring_payments p JOIN entries e ON e.id=p.entry_id AND e.user_id=p.user_id WHERE p.user_id=? AND p.recurring_id=? AND p.month=?').get(req.userId,req.params.id,month) as Row|undefined
+    if(!e)fail(404,'Pagamento não encontrado.')
+    db.transaction(()=>{if(!e.archived_at){db.prepare('UPDATE entries SET archived_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?').run(e.id,req.userId);event(db,req.userId,'financial_entry_archived',String(e.date),'entry',String(e.id),`entry:${e.id}:archived`)}})();res.json({ok:true})
   })
   app.post('/api/budgets', (req,res)=>{
     const b=budgetSchema.parse(req.body)

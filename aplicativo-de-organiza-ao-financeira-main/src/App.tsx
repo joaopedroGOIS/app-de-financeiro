@@ -14,6 +14,7 @@ import { CreditCardsPage } from './pages/CreditCards'
 import { DashboardPage } from './pages/Dashboard'
 import { EntriesPage } from './pages/Entries'
 import { CsvImport } from './CsvImportDialog'
+import { RecurringExpenses } from './RecurringExpenses'
 import type { EntryFilter } from './pages/Entries'
 import { GoalsPage } from './pages/Goals'
 import { JourneyPage } from './pages/Journey'
@@ -454,18 +455,18 @@ export default function App() {
               description="Sua situação financeira, seus objetivos e sua evolução em uma única tela."
               action={<div className="dashboard-page-actions">{monthPicker}<Button onClick={createDashboardEntry}><Plus size={17} />Nova movimentação</Button></div>}
             />
-            <DashboardPage {...pageProps} month={month} />
+            <DashboardPage {...pageProps} month={month} onUpdated={refresh}/>
           </>}
 
           {page === 'entries' && <>
-            <CsvImport state={state} onUpdated={refresh}/>
             <PageHeading
               eyebrow="SEU HISTÓRICO"
               title="Movimentações"
               description="Receitas, despesas e ajustes organizados com clareza."
-              action={<div className="dashboard-page-actions"><CsvImport state={state} onUpdated={refresh}/><Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button></div>}
+              action={<div className="dashboard-page-actions">{monthPicker}<CsvImport state={state} onUpdated={refresh}/><Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button></div>}
             />
-            <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={monthPicker} />
+            <RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={refresh}/>
+            <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={null} />
           </>}
 
           {page === 'accounts' && <>

@@ -242,3 +242,46 @@ test('orçamento mensal atualiza sem duplicação, isola usuários e não altera
   assert.equal((await request(`/budgets/${saved.budgets[0].id}`,{method:'DELETE',sessionHeader})).status,200)
  }finally{server.close();db.close()}
 })
+
+test('recorrência só altera saldo ao pagar, reverte e reativa sem duplicar registro',async()=>{
+ const {db,server,request}=await setup()
+ try{
+  const a=await request('/auth/register',{method:'POST',transport:true,body:register('Ana','ana@recurring.example')})
+  const b=await request('/auth/register',{method:'POST',transport:true,body:register('Bia','bia@recurring.example')})
+  const sessionHeader=a.body.sessionToken,other=b.body.sessionToken
+  const account=(await request('/accounts',{method:'POST',sessionHeader,body:{name:'Conta',type:'corrente',openingCents:100000,isReserve:false,description:''}})).body.id
+  const plan={title:'Internet',category:'Moradia',amountCents:10000,dueDay:31,startMonth:'2024-01'}
+  const options={method:'POST',sessionHeader,body:plan,key:'recurring-fixed-key'}
+  const id=(await request('/recurring',options)).body.id
+  assert.equal((await request('/recurring',options)).body.id,id)
+  assert.equal((await request('/state',{sessionHeader})).body.entries.length,0)
+  assert.equal((await request('/recurring?month=2024-02',{sessionHeader})).body.items[0].dueDate,'2024-02-29')
+  assert.equal((await request('/recurring?month=2024-02',{sessionHeader:other})).body.items.length,0)
+  const payment={month:'2024-02',accountId:account,amountCents:10000,date:'2024-02-15',category:'Moradia'}
+  const paid=await request(`/recurring/${id}/pay`,{method:'POST',sessionHeader,body:payment})
+  assert.equal(paid.status,200)
+  assert.equal((await request(`/recurring/${id}/pay`,{method:'POST',sessionHeader,body:payment})).body.id,paid.body.id)
+  let state=(await request('/state',{sessionHeader})).body
+  assert.equal(state.entries.length,1);assert.equal(state.accounts[0].balanceCents,90000)
+  assert.equal((await request(`/recurring/${id}/reverse`,{method:'POST',sessionHeader:other,body:{month:'2024-02'}})).status,404)
+  assert.equal((await request(`/recurring/${id}/stop`,{method:'POST',sessionHeader:other,body:{}})).status,404)
+  await request(`/recurring/${id}/reverse`,{method:'POST',sessionHeader,body:{month:'2024-02'}})
+  state=(await request('/state',{sessionHeader})).body
+  assert.equal(state.accounts[0].balanceCents,100000)
+  assert.equal((await request(`/recurring/${id}/pay`,{method:'POST',sessionHeader,body:{...payment,amountCents:12000}})).body.id,paid.body.id)
+  state=(await request('/state',{sessionHeader})).body
+  assert.equal(state.entries.length,1);assert.equal(state.accounts[0].balanceCents,88000)
+  assert.equal((db.prepare("SELECT count(*) n FROM gamification_events WHERE event_type='expense_recorded'").get() as {n:number}).n,1)
+  await request(`/recurring/${id}/stop`,{method:'POST',sessionHeader,body:{}})
+  assert.equal((await request('/recurring?month=2999-01',{sessionHeader})).body.items.length,0)
+  assert.equal((await request(`/recurring/${id}/pay`,{method:'POST',sessionHeader,body:{...payment,month:'2999-01'}})).status,400)
+  const manual=(await request('/entries',{method:'POST',sessionHeader,key:'manual-linked-payment',body:{accountId:account,title:'Luz',category:'Moradia',type:'expense',amountCents:5000,date:'2024-02-12',note:''}})).body.id
+  const linkedPlan=(await request('/recurring',{method:'POST',sessionHeader,key:'linked-plan-fixed-key',body:{...plan,title:'Luz'}})).body.id
+  const beforeLink=(await request('/state',{sessionHeader})).body
+  const linked=await request(`/recurring/${linkedPlan}/pay`,{method:'POST',sessionHeader,body:{...payment,existingEntryId:manual}})
+  assert.equal(linked.body.id,manual);assert.equal(linked.body.linked,true)
+  const afterLink=(await request('/state',{sessionHeader})).body
+  assert.equal(afterLink.entries.length,beforeLink.entries.length)
+  assert.equal(afterLink.accounts[0].balanceCents,beforeLink.accounts[0].balanceCents)
+ }finally{server.close();db.close()}
+})

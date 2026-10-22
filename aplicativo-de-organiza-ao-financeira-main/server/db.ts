@@ -30,6 +30,14 @@ export function openDatabase(filename = process.env.DB_PATH || '.data/granae.sql
     CREATE TABLE IF NOT EXISTS user_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, theme TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   `)
   const assetColumns = db.prepare('PRAGMA table_info(assets)').all() as { name: string }[]
+  db.exec(`CREATE TABLE IF NOT EXISTS recurring_expenses (
+    id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),title TEXT NOT NULL,category TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL CHECK(amount_cents>0),due_day INTEGER NOT NULL CHECK(due_day BETWEEN 1 AND 31),
+    start_month TEXT NOT NULL,stopped_on TEXT
+  ); CREATE TABLE IF NOT EXISTS recurring_payments (
+    user_id TEXT NOT NULL REFERENCES users(id),recurring_id TEXT NOT NULL REFERENCES recurring_expenses(id),
+    month TEXT NOT NULL,entry_id TEXT NOT NULL UNIQUE REFERENCES entries(id),PRIMARY KEY(recurring_id,month)
+  )`)
   db.exec(`CREATE TABLE IF NOT EXISTS monthly_budgets (
     id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id),
     month TEXT NOT NULL, category TEXT NOT NULL, limit_cents INTEGER NOT NULL CHECK(limit_cents>0),
