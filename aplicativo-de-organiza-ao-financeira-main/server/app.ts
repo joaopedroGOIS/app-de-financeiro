@@ -24,6 +24,8 @@ const goalSchema = z.object({ title: text(70), kind: z.enum(['meta', 'sonho']), 
 const contributionSchema = z.object({ amountCents: cents.positive(), date, note: optionalText(200) })
 /** Aparência da interface. Persistida por conta para valer entre dispositivos. */
 const themeSchema = z.object({ theme: z.enum(['dark', 'light', 'system']) })
+const budgetMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+const budgetSchema = z.object({month:budgetMonth,category:text(40),limitCents:cents.positive()})
 function asRow(value: unknown): Row { return value as Row }
 function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }) }
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
@@ -141,6 +143,22 @@ export function createApp(db: DB) {
     res.json({ user, accounts: accountRows.map(a => ({ id: a.id, name: a.name, type: a.type, openingCents: a.opening_cents, isReserve: !!a.is_reserve, description: a.description, balanceCents: balances.find(b => b.id === a.id)?.balanceCents ?? 0 })), entries: entries.map(e => ({ id: e.id, accountId: e.account_id, title: e.title, category: e.category, type: e.type, amountCents: e.amount_cents, date: e.date, note: e.note })), archivedEntries: archivedEntries.map(e => ({ id: e.id, accountId: e.account_id, title: e.title, category: e.category, type: e.type, amountCents: e.amount_cents, date: e.date, note: e.note, archivedAt: e.archived_at })), assets: assets.map(a => ({ id: a.id, name: a.name, kind: a.kind, amountCents: a.amount_cents, note: a.note, installmentCount: a.installment_count ?? null, firstDueDate: a.first_due_date ?? null })), goals: goals.map(g => ({ id: g.id, title: g.title, kind: g.kind, targetCents: g.target_cents, icon: g.icon, deadline: g.deadline, savedCents: contributions.filter(c => c.goal_id === g.id).reduce((sum, c) => sum + Number(c.amount_cents), 0), milestones: milestones.filter(m => m.goal_id === g.id).map(m => m.milestone) })), progress: playerProgress, preferences: { theme: preference?.theme ?? null }, stats: { reserveCents, netWorthCents, streak: streakFromDates(entries.map(e => String(e.date)), today()), financialClass: null } })
   })
   app.patch('/api/profile', (req, res) => { const { name } = z.object({ name: text(50) }).parse(req.body); db.prepare('UPDATE users SET name=? WHERE id=?').run(name, req.userId); res.json({ ok: true }) })
+  app.get('/api/budgets', (req,res)=>{
+    const month=budgetMonth.parse(req.query.month)
+    const budgets=db.prepare('SELECT id,category,limit_cents AS limitCents FROM monthly_budgets WHERE user_id=? AND month=? ORDER BY category').all(req.userId,month)
+    const spending=db.prepare("SELECT category,SUM(amount_cents) AS spentCents FROM entries WHERE user_id=? AND type='expense' AND archived_at IS NULL AND substr(date,1,7)=? GROUP BY category").all(req.userId,month)
+    res.json({budgets,spending})
+  })
+  app.post('/api/budgets', (req,res)=>{
+    const b=budgetSchema.parse(req.body)
+    db.prepare('INSERT INTO monthly_budgets(id,user_id,month,category,limit_cents) VALUES (?,?,?,?,?) ON CONFLICT(user_id,month,category) DO UPDATE SET limit_cents=excluded.limit_cents').run(randomUUID(),req.userId,b.month,b.category,b.limitCents)
+    res.json({ok:true})
+  })
+  app.delete('/api/budgets/:id', (req,res)=>{
+    const result=db.prepare('DELETE FROM monthly_budgets WHERE id=? AND user_id=?').run(req.params.id,req.userId)
+    if(!result.changes)fail(404,'Limite não encontrado.')
+    res.json({ok:true})
+  })
   app.patch('/api/preferences', (req, res) => {
     const { theme } = themeSchema.parse(req.body)
     db.prepare('INSERT INTO user_preferences(user_id,theme) VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET theme=excluded.theme, updated_at=CURRENT_TIMESTAMP').run(req.userId, theme)

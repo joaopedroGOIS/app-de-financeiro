@@ -219,3 +219,26 @@ test('registra valor de milhões em centavos sem truncar no milhar', async () =>
     db.close()
   }
 })
+
+test('orçamento mensal atualiza sem duplicação, isola usuários e não altera finanças ou XP',async()=>{
+ const {db,server,request}=await setup()
+ try{
+  const a=await request('/auth/register',{method:'POST',transport:true,body:register('Ana','ana@budget.example')})
+  const b=await request('/auth/register',{method:'POST',transport:true,body:register('Bia','bia@budget.example')})
+  const sessionHeader=a.body.sessionToken,other=b.body.sessionToken
+  const before=(await request('/state',{sessionHeader})).body
+  const budget={month:'2026-10',category:'Mercado',limitCents:10000}
+  assert.equal((await request('/budgets',{method:'POST',sessionHeader,body:budget})).status,200)
+  await request('/budgets',{method:'POST',sessionHeader,body:{...budget,limitCents:20000}})
+  const saved=(await request('/budgets?month=2026-10',{sessionHeader})).body
+  assert.equal(saved.budgets.length,1);assert.equal(saved.budgets[0].limitCents,20000)
+  assert.equal((await request('/budgets?month=2026-11',{sessionHeader})).body.budgets.length,0)
+  assert.equal((await request('/budgets?month=2026-10',{sessionHeader:other})).body.budgets.length,0)
+  assert.equal((await request(`/budgets/${saved.budgets[0].id}`,{method:'DELETE',sessionHeader:other})).status,404)
+  assert.equal((await request('/budgets',{method:'POST',sessionHeader,body:{...budget,limitCents:0}})).status,400)
+  assert.equal((await request('/budgets?month=2026-13',{sessionHeader})).status,400)
+  const after=(await request('/state',{sessionHeader})).body
+  assert.deepEqual(after.accounts,before.accounts);assert.deepEqual(after.entries,before.entries);assert.deepEqual(after.progress,before.progress)
+  assert.equal((await request(`/budgets/${saved.budgets[0].id}`,{method:'DELETE',sessionHeader})).status,200)
+ }finally{server.close();db.close()}
+})

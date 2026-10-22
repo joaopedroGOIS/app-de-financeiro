@@ -1,4 +1,5 @@
 import { AdventureArt } from './AdventureArt'
+import { MonthlyBudgets } from '../MonthlyBudgets'
 import { useState } from 'react'
 import { FinancialReports, ReportDetails } from './FinancialReports'
 import { Activity, ArrowDownLeft, ArrowUpRight, Award, Banknote, BookOpen, CalendarClock, CarFront, Clapperboard, Coins, Flame, Gem, HeartPulse, House, Landmark, Pencil, Plus, Repeat2, Shapes, ShieldCheck, ShoppingBag, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Utensils, Wallet } from 'lucide-react'
@@ -186,6 +187,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
 
       <RewardHistory game={state.gamification} limit={3}/>
       <div className="below-overview-monthly-summary">{monthlySummary}</div>
+      <MonthlyBudgets key={`budget:${month}`} month={month} state={state}/>
 
       <nav className="adventure-trail" aria-label="Sua jornada financeira">
         <div><span className="hero-kicker">SUA JORNADA</span><h3>Um passo de cada vez.</h3><p>Organize o presente e acompanhe suas conquistas.</p></div>
