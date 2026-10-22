@@ -1,6 +1,7 @@
 import { AdventureArt } from './AdventureArt'
 import { MonthlyBudgets } from '../MonthlyBudgets'
 import { RecurringExpenses } from '../RecurringExpenses'
+import {FirstSteps} from '../FirstSteps'
 import { useState } from 'react'
 import { FinancialReports, ReportDetails } from './FinancialReports'
 import { Activity, ArrowDownLeft, ArrowUpRight, Award, Banknote, BookOpen, CalendarClock, CarFront, Clapperboard, Coins, Flame, Gem, HeartPulse, House, Landmark, Pencil, Plus, Repeat2, Shapes, ShieldCheck, ShoppingBag, Sparkles, Target, Trash2, TrendingDown, TrendingUp, Utensils, Wallet } from 'lucide-react'
@@ -27,7 +28,8 @@ export function CategoryGlyph({ name, type, size = 18 }: { name: string; type?: 
   return <Icon size={size} strokeWidth={2} />
 }
 
-export function DashboardPage({ state, month, go, open, editEntry, editGoal, contributeTo, requestRemove, onUpdated }: PageProps & { month: string; onUpdated?:()=>Promise<unknown> }) {
+export function DashboardPage({ state, month, go, open, editEntry, editGoal, contributeTo, requestRemove, onUpdated,onMonth }: PageProps & { month: string; onUpdated?:()=>Promise<unknown>;onMonth?:(month:string)=>void }) {
+  const [budgetRevision,setBudgetRevision]=useState(0)
   const [reportCategory, setReportCategory] = useState<string | null>(null)
   const firstName = state.user.name.split(' ')[0]
   const today = dateToday()
@@ -188,7 +190,8 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
 
       <RewardHistory game={state.gamification} limit={3}/>
       <div className="below-overview-monthly-summary">{monthlySummary}</div>
-      <MonthlyBudgets key={`budget:${month}`} month={month} state={state}/>
+      {onMonth&&<FirstSteps key={state.user.id} state={state} budgetRevision={budgetRevision} onAccount={()=>go('accounts')} onEntry={()=>go('entries')} onBudget={()=>{onMonth(dateToday().slice(0,7));requestAnimationFrame(()=>{const target=document.getElementById('monthly-budget-guide');target?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});target?.focus({preventScroll:true})})}}/>}
+      <section id="monthly-budget-guide" tabIndex={-1}><MonthlyBudgets key={`budget:${month}`} month={month} state={state} onChanged={()=>setBudgetRevision(n=>n+1)}/></section>
       {onUpdated&&<RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={onUpdated} compact onManage={()=>go('entries')}/>}
 
       <nav className="adventure-trail" aria-label="Sua jornada financeira">

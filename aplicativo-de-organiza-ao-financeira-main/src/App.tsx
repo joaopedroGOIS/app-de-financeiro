@@ -15,6 +15,8 @@ import { DashboardPage } from './pages/Dashboard'
 import { EntriesPage } from './pages/Entries'
 import { CsvImport } from './CsvImportDialog'
 import { RecurringExpenses } from './RecurringExpenses'
+import {PasswordAccess} from './PasswordAccess'
+import {initializeRecovery,leaveRecovery} from './data'
 import type { EntryFilter } from './pages/Entries'
 import { GoalsPage } from './pages/Goals'
 import { JourneyPage } from './pages/Journey'
@@ -37,8 +39,9 @@ function pageFromHash(): PageId {
   return (Object.keys(pagePaths) as PageId[]).find(page => window.location.hash === `#/${pagePaths[page]}`) ?? 'dashboard'
 }
 
-function Authentication({ onReady, sessionError = '' }: { onReady: () => void; sessionError?: string }) {
-  const [mode, setMode] = useState<'register' | 'login'>(sessionError ? 'login' : 'register')
+function Authentication({ onReady, sessionError = '',notice='',preferLogin=false }: { onReady: () => void; sessionError?: string;notice?:string;preferLogin?:boolean }) {
+  const [mode, setMode] = useState<'register' | 'login'>(sessionError||preferLogin ? 'login' : 'register')
+  const [forgot,setForgot]=useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -62,6 +65,7 @@ function Authentication({ onReady, sessionError = '' }: { onReady: () => void; s
       setPending(false)
     }
   }
+  if(forgot)return <PasswordAccess onClose={()=>{setForgot(false);setMode('login')}} onComplete={()=>{setForgot(false);setMode('login')}}/>
   return (
     <div className="auth-layout">
       <div className="auth-story">
@@ -97,6 +101,7 @@ function Authentication({ onReady, sessionError = '' }: { onReady: () => void; s
           </div>
           <span className="auth-top-icon"><Sparkles size={23} /></span>
           <h2>{mode === 'register' ? 'Comece sua jornada' : 'Que bom ter você de volta!'}</h2>
+          {notice&&<p role="status">{notice}</p>}
           <p>{mode === 'register' ? 'Um espaço só seu para cuidar do dinheiro sem planilhas e sem complicação.' : 'Entre para continuar de onde você parou.'}</p>
           <div className="auth-tabs">
             <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setError('') }}>Criar conta</button>
@@ -117,6 +122,7 @@ function Authentication({ onReady, sessionError = '' }: { onReady: () => void; s
             {error && <InlineError>{error}</InlineError>}
             <Button type="submit" wide disabled={pending}>{pending ? 'Só um instante...' : mode === 'register' ? 'Criar meu espaço' : 'Entrar no Granaê'} <ArrowRight size={18} /></Button>
           </form>
+          {mode==='login'&&<button type="button" className="text-action auth-forgot" onClick={()=>setForgot(true)}>Esqueci minha senha</button>}
           <div className="auth-privacy"><LockKeyhole size={16} />Seus dados são privados. Nada de cassino, apostas ou recompensas por gastar.</div>
         </div>
       </div>
@@ -125,6 +131,8 @@ function Authentication({ onReady, sessionError = '' }: { onReady: () => void; s
 }
 
 export default function App() {
+  const [recovery,setRecovery]=useState(initializeRecovery)
+  const [accessNotice,setAccessNotice]=useState('')
   const [state, setState] = useState<State | null>(null)
   const [checking, setChecking] = useState(true)
   const [sessionError, setSessionError] = useState('')
@@ -186,7 +194,7 @@ export default function App() {
       .finally(() => setChecking(false))
   }
 
-  useEffect(() => { boot() }, [])
+  useEffect(() => { if(!recovery)boot();else setChecking(false) }, [])
 
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
@@ -311,9 +319,10 @@ export default function App() {
     }
   }
 
+  if(recovery)return <PasswordAccess initial={recovery} onClose={()=>{leaveRecovery();setRecovery(null);setState(null);setChecking(false);setAccessNotice('Entre com seu e-mail e senha para continuar.')}} onComplete={()=>{leaveRecovery();setRecovery(null);setState(null);setChecking(false);setAccessNotice('Senha atualizada. Entre com sua nova senha.')}}/>
   if (checking) return <LoadingScreen />
 
-  if (!state) return <Authentication onReady={() => boot(true)} sessionError={sessionError} />
+  if (!state) return <Authentication onReady={() => boot(true)} sessionError={sessionError} notice={accessNotice} preferLogin={!!accessNotice}/>
 
   const firstName = state.user.name.split(' ')[0]
   const selected = nav.find(item => item.id === page)
@@ -455,7 +464,7 @@ export default function App() {
               description="Sua situação financeira, seus objetivos e sua evolução em uma única tela."
               action={<div className="dashboard-page-actions">{monthPicker}<Button onClick={createDashboardEntry}><Plus size={17} />Nova movimentação</Button></div>}
             />
-            <DashboardPage {...pageProps} month={month} onUpdated={refresh}/>
+            <DashboardPage {...pageProps} month={month} onUpdated={refresh} onMonth={setMonth}/>
           </>}
 
           {page === 'entries' && <>

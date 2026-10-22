@@ -8,7 +8,7 @@ import {budgetRows,unbudgetedSpending} from './budgets'
 import {MoneyInput} from './components/MoneyInput'
 import {Badge,Button,Card,CardHeader,ConfirmDialog,InlineError,Modal,ProgressBar} from './ui'
 
-export function MonthlyBudgets({month,state}:{month:string;state:State}) {
+export function MonthlyBudgets({month,state,onChanged}:{month:string;state:State;onChanged?:()=>void}) {
  const [data,setData]=useState<BudgetState|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false)
  const [editing,setEditing]=useState<MonthlyBudget|null|undefined>(undefined),[removing,setRemoving]=useState<MonthlyBudget|null>(null)
  const [category,setCategory]=useState(''),[value,setValue]=useState(''),[formError,setFormError]=useState(''),[revision,setRevision]=useState(0)
@@ -16,8 +16,8 @@ export function MonthlyBudgets({month,state}:{month:string;state:State}) {
  const rows=data?budgetRows(data):[],unplanned=data?unbudgetedSpending(data):0
  const options=[...new Set([...(state.categories?.filter(c=>c.type==='expense'&&!c.archivedAt).map(c=>c.name)??[]),...state.entries.filter(e=>e.type==='expense').map(e=>e.category),...(data?.budgets.map(b=>b.category)??[]),...(data?.spending.map(s=>s.category)??[])])].sort((a,b)=>a.localeCompare(b,'pt-BR'))
  const open=(item:MonthlyBudget|null)=>{setEditing(item);setCategory(item?.category??options[0]??'');setValue(item?inputMoney(item.limitCents):'');setFormError('')}
- const save=async(event:FormEvent)=>{event.preventDefault();setBusy(true);setFormError('');try{await api('/budgets',json('POST',{month,category,limitCents:toCents(value)}));setEditing(undefined);setRevision(n=>n+1)}catch{setFormError('Não foi possível salvar o limite. Confira o valor e tente novamente.')}finally{setBusy(false)}}
- const remove=async()=>{if(!removing)return;setBusy(true);try{await api(`/budgets/${removing.id}`,{method:'DELETE'});setRemoving(null);setRevision(n=>n+1)}catch{setFormError('Não foi possível retirar o limite. Tente novamente.')}finally{setBusy(false)}}
+ const save=async(event:FormEvent)=>{event.preventDefault();setBusy(true);setFormError('');try{await api('/budgets',json('POST',{month,category,limitCents:toCents(value)}));setEditing(undefined);setRevision(n=>n+1);onChanged?.()}catch{setFormError('Não foi possível salvar o limite. Confira o valor e tente novamente.')}finally{setBusy(false)}}
+ const remove=async()=>{if(!removing)return;setBusy(true);try{await api(`/budgets/${removing.id}`,{method:'DELETE'});setRemoving(null);setRevision(n=>n+1);onChanged?.()}catch{setFormError('Não foi possível retirar o limite. Tente novamente.')}finally{setBusy(false)}}
  return <Card className="monthly-budget-panel">
   <CardHeader title="Seu plano do mês" description={`Orçamento por categoria · ${monthName(month)}`} icon={Target} action={!loading&&!error&&<Button size="sm" variant="secondary" disabled={!options.length} onClick={()=>open(null)}><Plus size={16}/>Definir limite</Button>}/>
   <p className="card-description">Planeje seus gastos sem reservar ou movimentar dinheiro. Os limites valem somente para este mês.</p>
