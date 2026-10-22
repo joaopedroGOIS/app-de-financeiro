@@ -1,6 +1,7 @@
 import { cardCashPayments, cardExpenseEntries, cardOutstanding, emptyCardState } from './creditCards'
 import type { CardState } from './creditCards'
 import type { ThemeMode } from './theme'
+import {parseRecoveryRedirect,recoveryRequest,recoveryUpdate} from './recovery'
 
 export type Account = { id: string; name: string; type: 'corrente' | 'poupança' | 'dinheiro' | 'investimento' | 'outro'; openingCents: number; balanceCents: number; isReserve: boolean; description: string }
 export type Entry = { id: string; accountId: string; cardId?: string; cardPaymentId?: string; settled?: boolean; title: string; category: string; subcategory?: string; type: 'income' | 'expense' | 'adjustment'; amountCents: number; date: string; note: string }
@@ -56,6 +57,33 @@ try { sessionToken = sessionStorage.getItem(SESSION_KEY); refreshToken = session
 const env = (import.meta as ImportMeta & { env?: ImportMetaEnv & { VITE_SUPABASE_URL?: string; VITE_SUPABASE_PUBLISHABLE_KEY?: string } }).env ?? {}
 const projectUrl = env.VITE_SUPABASE_URL?.replace(/\/$/, '')
 const publishableKey = env.VITE_SUPABASE_PUBLISHABLE_KEY
+let recoveryToken:string|null=null
+let initialRecovery:'update'|'invalid'|null|undefined
+export function initializeRecovery() {
+  if(initialRecovery!==undefined)return initialRecovery
+  if(typeof window==='undefined')return null
+  const redirect=parseRecoveryRedirect(window.location.hash)
+  initialRecovery=redirect.kind==='none'?null:redirect.kind
+  if(redirect.kind!=='none') {
+    if(redirect.kind==='update')recoveryToken=redirect.accessToken
+    window.history.replaceState(null,'',window.location.pathname+'#/recuperar-senha')
+  }
+  return initialRecovery
+}
+export async function requestPasswordRecovery(email:string) {
+  ensureConfig()
+  await recoveryRequest({url:projectUrl!,key:publishableKey!},email)
+}
+export async function updateRecoveredPassword(password:string) {
+  ensureConfig()
+  if(!recoveryToken)throw Object.assign(new Error('Solicite um novo link de recuperação.'),{expired:true})
+  await recoveryUpdate({url:projectUrl!,key:publishableKey!},recoveryToken,password)
+  recoveryToken=null;initialRecovery=null;setSessionToken(null)
+}
+export function leaveRecovery() {
+  recoveryToken=null;initialRecovery=null
+  window.history.replaceState(null,'',window.location.pathname+'#/visao-geral')
+}
 
 function ensureConfig() {
   if (!projectUrl || !publishableKey) throw new ApiError('Configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY antes de iniciar o app.', 500)

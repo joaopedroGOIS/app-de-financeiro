@@ -253,15 +253,45 @@ export function EmptyState({ icon, title, text, action }: { icon: ReactNode; tit
   )
 }
 
+const modalStack: HTMLElement[] = []
+let previousBodyOverflow = ''
 export function Modal({ title, subtitle, onClose, children, wide = false, className = '', immersiveOnMobile = false }: { title: string; subtitle?: string; onClose: () => void; children: ReactNode; wide?: boolean; className?: string; immersiveOnMobile?: boolean }) {
+  const dialogRef=useRef<HTMLDivElement>(null), closeRef=useRef(onClose)
+  closeRef.current=onClose
+  const [previousFocus]=useState(()=>typeof document==='undefined'?null:document.activeElement as HTMLElement|null)
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    const dialog=dialogRef.current
+    if(!dialog)return
+    if(!modalStack.length){previousBodyOverflow=document.body.style.overflow;document.body.style.overflow='hidden'}
+    modalStack.push(dialog)
+    const isTop=()=>modalStack[modalStack.length-1]===dialog
+    const focusable=()=>Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled):not([type="hidden"]),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(e=>!e.matches(':disabled')&&e.tabIndex>=0&&e.getClientRects().length>0&&!e.closest('[hidden],[inert],[aria-hidden="true"]'))
+    const first=()=>focusable()[0]??dialog
+    if(!dialog.contains(document.activeElement))first().focus()
+    const onFocus=(event:FocusEvent)=>{if(isTop()&&!dialog.contains(event.target as Node))first().focus()}
+    const onKey = (event: KeyboardEvent) => {
+      if(!isTop())return
+      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeRef.current();return}
+      if(event.key!=='Tab')return
+      const nodes=focusable(),firstNode=nodes[0],lastNode=nodes[nodes.length-1]
+      if(!firstNode){event.preventDefault();dialog.focus();return}
+      if(event.shiftKey&&(document.activeElement===firstNode||!dialog.contains(document.activeElement)||document.activeElement===dialog)){event.preventDefault();lastNode.focus()}
+      else if(!event.shiftKey&&(document.activeElement===lastNode||!dialog.contains(document.activeElement))){event.preventDefault();firstNode.focus()}
+    }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+    document.addEventListener('focusin',onFocus)
+    return () => {
+      document.removeEventListener('keydown',onKey);document.removeEventListener('focusin',onFocus)
+      const index=modalStack.indexOf(dialog);if(index>=0)modalStack.splice(index,1)
+      if(!modalStack.length)document.body.style.overflow=previousBodyOverflow
+      const parent=modalStack[modalStack.length-1]
+      if(previousFocus?.isConnected&&(!parent||parent.contains(previousFocus)))previousFocus.focus({preventScroll:true})
+      else parent?.focus({preventScroll:true})
+    }
+  }, [previousFocus])
   return (
     <div className={`modal-backdrop ${immersiveOnMobile ? 'immersive-on-mobile' : ''}`} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
-      <div className={`modal ${wide ? 'wide' : ''} ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title}>
+      <div ref={dialogRef} tabIndex={-1} className={`modal ${wide ? 'wide' : ''} ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title}>
         <IconButton label="Fechar" icon={X} className="modal-close" onClick={onClose} />
         <h2>{title}</h2>
         {subtitle && <p className="modal-subtitle">{subtitle}</p>}
