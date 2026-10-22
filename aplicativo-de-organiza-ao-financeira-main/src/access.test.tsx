@@ -62,5 +62,6 @@ test('inicialização retira token da URL e permanece estável na montagem repet
  const visited:string[]=[]
  const fake={location:{hash:'#access_token=test-only-private&type=recovery',pathname:'/'},history:{replaceState:(_state:unknown,_title:string,url:string)=>{visited.push(url);fake.location.hash='#/recuperar-senha'}}}
  Object.defineProperty(globalThis,'window',{configurable:true,value:fake})
- try{assert.equal(initializeRecovery(),'update');assert.equal(initializeRecovery(),'update');assert.equal(visited.length,1);assert.equal(visited[0],'/#/recuperar-senha');assert.doesNotMatch(visited.join(''),/test-only-private/);leaveRecovery()}finally{if(original)Object.defineProperty(globalThis,'window',original);else Reflect.deleteProperty(globalThis,'window')}
+ try{assert.equal(initializeRecovery(),'update');assert.equal(initializeRecovery(),'update');assert.equal(visited.length,1);assert.equal(visited[0],'/#/recuperar-senha');assert.doesNotMatch(visited.join(''),/test-only-private/);leaveRecovery();fake.location.hash='#access_token=second-test&type=recovery';assert.equal(initializeRecovery(true),'update');assert.equal(visited[visited.length-1],'/#/recuperar-senha');leaveRecovery();fake.location.hash='#/visao-geral';assert.equal(initializeRecovery(true),null)}finally{if(original)Object.defineProperty(globalThis,'window',original);else Reflect.deleteProperty(globalThis,'window')}
 })
+

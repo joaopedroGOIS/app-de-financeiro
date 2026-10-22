@@ -59,10 +59,12 @@ const projectUrl = env.VITE_SUPABASE_URL?.replace(/\/$/, '')
 const publishableKey = env.VITE_SUPABASE_PUBLISHABLE_KEY
 let recoveryToken:string|null=null
 let initialRecovery:'update'|'invalid'|null|undefined
-export function initializeRecovery() {
-  if(initialRecovery!==undefined)return initialRecovery
+export function initializeRecovery(force=false) {
+  if(initialRecovery!==undefined&&!force)return initialRecovery
   if(typeof window==='undefined')return null
+  if(force&&window.location.hash==='#/recuperar-senha'&&recoveryToken)return 'update'
   const redirect=parseRecoveryRedirect(window.location.hash)
+  recoveryToken=null
   initialRecovery=redirect.kind==='none'?null:redirect.kind
   if(redirect.kind!=='none') {
     if(redirect.kind==='update')recoveryToken=redirect.accessToken
