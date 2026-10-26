@@ -20,7 +20,7 @@ export function JourneyPage({ state, go, onUpdated }: PageProps & { onUpdated?:(
         <div>
           <span className="hero-kicker"><Sparkles size={15} /> SEU PROGRESSO</span>
           <h2>Nível {state.progress.level}</h2>
-          <p>A evolução nasce de hábitos financeiros saudáveis. Sem atalhos e sem apostar sua grana.</p>
+          <p>Cada cuidado conta.</p>
         </div>
         <span className="journey-hero-orb"><Gem size={34} /></span>
       </div>
@@ -38,7 +38,7 @@ export function JourneyPage({ state, go, onUpdated }: PageProps & { onUpdated?:(
               </ProgressRing>
             )}
           </div>
-          <small>Experiência registrada no servidor</small>
+          <small>Experiência acumulada</small>
           <small>{xpBar.label}</small>
         </div>
         <div className="journey-stat">

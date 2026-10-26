@@ -17,7 +17,7 @@ export const DEFAULT_THEME_MODE: ThemeMode = 'dark'
 export const THEME_MODES: ThemeMode[] = ['dark', 'light', 'system']
 
 /** Cor da barra do navegador/telefone por tema resolvido. */
-const META_THEME_COLOR: Record<ResolvedTheme, string> = { dark: '#111116', light: '#F4F7FC' }
+const META_THEME_COLOR: Record<ResolvedTheme, string> = { dark: '#202126', light: '#e9eef3' }
 
 export function isThemeMode(value: unknown): value is ThemeMode {
   return typeof value === 'string' && (THEME_MODES as string[]).includes(value)

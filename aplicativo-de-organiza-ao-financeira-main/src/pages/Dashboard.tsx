@@ -1,4 +1,3 @@
-import { AdventureArt } from './AdventureArt'
 import { MonthlyBudgets } from '../MonthlyBudgets'
 import { RecurringExpenses } from '../RecurringExpenses'
 import {FirstSteps} from '../FirstSteps'
@@ -30,6 +29,8 @@ export function CategoryGlyph({ name, type, size = 18 }: { name: string; type?: 
 
 export function DashboardPage({ state, month, go, open, editEntry, editGoal, contributeTo, requestRemove, onUpdated,onMonth }: PageProps & { month: string; onUpdated?:()=>Promise<unknown>;onMonth?:(month:string)=>void }) {
   const [budgetRevision,setBudgetRevision]=useState(0)
+  const [planningOpen,setPlanningOpen]=useState(false)
+  const featuredMission=state.missions?.current.find(m=>m.status==='in_progress') ?? state.missions?.current.find(m=>m.status==='available')
   const [reportCategory, setReportCategory] = useState<string | null>(null)
   const firstName = state.user.name.split(' ')[0]
   const today = dateToday()
@@ -86,120 +87,47 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
 
   return (
     <>
-      <div className="dash-hero">
-        <div className="hero-greeting">
-          <span className="hero-kicker"><Sparkles size={15} /> SEU PAINEL DE EVOLUÇÃO</span>
-          <h2>Olá, {firstName}</h2>
-          <p>Sua grana, seus objetivos e sua evolução em um só lugar. Organize o presente e cuide do futuro um passo de cada vez.</p>
-          <div className="hero-actions">
-            <Button variant="on-hero" onClick={openEntry}><Plus size={18} />Nova movimentação</Button>
-            <Button variant="on-hero" onClick={() => go('journey')}><Award size={18} />Ver evolução</Button>
-          </div>
-        </div>
-      </div>
-
-      <nav className="adventure-actions" aria-label="Atalhos financeiros">
-        <button type="button" onClick={openEntry}><span><Plus size={22} /></span><div><strong>Registrar movimentação</strong><small>Receitas e despesas</small></div></button>
-        <button type="button" onClick={() => go('accounts')}><span><Wallet size={22} /></span><div><strong>Minhas contas</strong><small>Seus saldos em um lugar</small></div></button>
-        <button type="button" onClick={() => go('goals')}><span><Target size={22} /></span><div><strong>Meus objetivos</strong><small>Construa seu próximo passo</small></div></button>
-        <button type="button" onClick={() => go('cards')}><span><CalendarClock size={22} /></span><div><strong>Cartões e faturas</strong><small>Acompanhe seus compromissos</small></div></button>
-      </nav>
-      <div className="dashboard-overview">
-        <Card className="net-worth-card dashboard-net-worth">
-          <div className="net-worth-heading">
-            <div>
-              <span className="net-worth-label">PATRIMÔNIO LÍQUIDO REGISTRADO</span>
-              <strong className="net-worth-value">{currency(state.stats.netWorthCents)}</strong>
-              <small>Contas + bens − dívidas, incluindo cartões</small>
-            </div>
-            <span className="net-worth-icon"><Gem size={21} /></span>
-          </div>
-          <AdventureArt landscape />
-          <div className="net-worth-breakdown">
-            <div>
-              <span><Wallet size={14} />Saldo total das contas</span>
-              <strong>{currency(balance)}</strong>
-            </div>
-            <div>
-              <span><ShieldCheck size={14} />Reserva financeira</span>
-              <strong>{currency(state.stats.reserveCents)}</strong>
-            </div>
-          </div>
-          <div className="financial-class-note">
-            <span className="financial-class-mark"><Sparkles size={14} /></span>
-            <div><small>Classe financeira</small><strong>{state.stats.financialClass ?? 'Aguardando sincronização'}</strong></div>
-            <Badge tone="primary">Sua reserva</Badge>
-          </div>
-          <p className="financial-class-hint">Sua classe acompanha apenas a reserva elegível. XP, bens e dívidas não definem sua classe.</p>
-          <div className="desktop-monthly-summary">{monthlySummary}</div>
+      <div className="identity-welcome"><span className="eyebrow">Olá, {firstName}</span><h1>Cuide do agora.<br/><em>Conquiste o depois.</em></h1></div>
+      <div className="identity-overview">
+        <Card className="identity-worth">
+          <span className="eyebrow">Patrimônio líquido registrado</span>
+          <strong className="identity-money">{currency(state.stats.netWorthCents)}</strong>
+          <small>Contas + bens − dívidas, incluindo cartões</small>
+          <div className="identity-worth-details"><span><Wallet size={16}/>Contas<strong>{currency(balance)}</strong></span><span><ShieldCheck size={16}/>Reserva<strong>{currency(state.stats.reserveCents)}</strong></span></div>
+          <button className="text-action" type="button" onClick={()=>go('wealth')}>Ver patrimônio <ArrowUpRight size={15}/></button>
+          <small className="identity-class">Classe financeira: {state.stats.financialClass ?? 'Aguardando sincronização'}</small>
         </Card>
-
-        <div className="level-panel dashboard-level-panel">
-          <AdventureArt />
-          <div className="level-head">
-            <span className="level-badge" aria-label={`Nível ${state.progress.level}`}><Gem size={18} aria-hidden="true" /><strong>{state.progress.level}</strong></span>
-            <span className="level-head-text">
-              <small>NÍVEL ATUAL</small>
-              <strong>{state.progress.xp_total} XP</strong>
-            </span>
-          </div>
-          <div>
-            <div className="level-xp">
-              <span>{state.progress.level===100?'Nível máximo':`Progresso para o nível ${state.progress.level + 1}`}</span>
-              <strong>{xpBar.label}</strong>
-            </div>
-            {state.progress.nextLevelXp && <ProgressBar value={xpProgress} onHero size="thick" label="Progresso de XP para o próximo nível" />}
-            <p className="level-note">
-              {state.progress.level===100 ? 'Sua evolução continua nos seus hábitos.' : state.progress.nextLevelXp
-                ? `Faltam ${xpBar.remaining} XP para o próximo nível.`
-                : 'A curva oficial de XP ainda não está configurada neste servidor. Mostramos seu XP registrado, sem estimar nada.'}
-            </p>
-          </div>
-          <div className="hero-chips">
-            <span className="hero-chip">
-              <Coins size={17} />
-              <span className="hero-chip-text"><strong>{state.progress.graninha_balance} Graninha</strong><small>Moeda virtual</small></span>
-            </span>
-            <span className="hero-chip">
-              <Flame size={17} />
-              <span className="hero-chip-text"><strong>{state.stats.streak} {state.stats.streak === 1 ? 'dia' : 'dias'}</strong><small>de sequência</small></span>
-            </span>
-          </div>
-        </div>
-
-        <div className="dashboard-side-stats">
-          <Card className="player-summary-card streak-summary-card">
-            <div className="player-summary-heading">
-              <span className="player-summary-icon"><Flame size={18} /></span>
-              <small>SEQUÊNCIA ATUAL</small>
-            </div>
-            <strong>{state.stats.streak} {state.stats.streak === 1 ? 'dia' : 'dias'}</strong>
-            <p>com ações financeiras registradas</p>
-          </Card>
-          <Card className="player-summary-card graninha-summary-card">
-            <div className="player-summary-heading">
-              <span className="player-summary-icon"><Coins size={18} /></span>
-              <small>GRANINHA</small>
-            </div>
-            <strong>{state.progress.graninha_balance}</strong>
-            <p>Moeda virtual do Granaê</p>
-          </Card>
-        </div>
-
+        <Card className="identity-player">
+          <div className="identity-player-heading"><span className="identity-crystal" aria-label={`Nível ${state.progress.level}`}>{state.progress.level}</span><div><span className="eyebrow">Sua evolução</span><h2>Nível {state.progress.level}</h2><small>{state.stats.streak} dias de sequência</small></div></div>
+          <div className="identity-xp"><span>{state.progress.xp_total} XP</span><small>{xpBar.label}</small></div>
+          <ProgressBar value={xpProgress} label="Progresso de XP para o próximo nível"/>
+          <div className="identity-player-footer"><span><Coins size={16}/>{state.progress.graninha_balance} Graninhas</span><button className="text-action" type="button" onClick={()=>go('journey')}>Jornada ↗</button></div>
+          {!state.progress.curveVersion&&<small className="identity-config-note">A curva oficial de XP ainda não está configurada.</small>}
+        </Card>
       </div>
+      <nav className="identity-actions" aria-label="Atalhos financeiros">
+        <button type="button" onClick={openEntry}><span><Plus size={23}/></span>Registrar</button>
+        <button type="button" onClick={()=>go('accounts')}><span><Wallet size={23}/></span>Contas</button>
+        <button type="button" onClick={()=>go('goals')}><span><Target size={23}/></span>Objetivos</button>
+        <button type="button" onClick={()=>{setPlanningOpen(true);requestAnimationFrame(()=>document.getElementById('identity-planning')?.scrollIntoView({behavior:'smooth',block:'start'}))}}><span><CalendarClock size={23}/></span>Planejar</button>
+      </nav>
+      {monthlySummary}
+      <div className="identity-focus">
+        <div className="identity-focus-icon"><Award size={28}/></div>
+        <div><span className="eyebrow">Seu próximo passo</span><h3>{featuredMission?.name ?? 'Sua jornada financeira'}</h3>
+        {featuredMission ? <><ProgressBar value={Math.min(100,((Math.min(featuredMission.days,featuredMission.requiredDays)+Math.min(featuredMission.reviews,featuredMission.requiredReviews))/(featuredMission.requiredDays+featuredMission.requiredReviews||1))*100)} label={`Progresso de ${featuredMission.name}`}/><small>{featuredMission.days}/{featuredMission.requiredDays} dias{featuredMission.requiredReviews>0?` · ${featuredMission.reviews}/${featuredMission.requiredReviews} revisões`:''} · +{featuredMission.xp} XP · {featuredMission.graninha} Graninhas</small></> : <small>{state.missions?'Acompanhe suas conquistas e rotinas.':'Missões indisponíveis no momento.'}</small>}</div>
+        <Button variant="ghost" aria-label="Ver jornada" onClick={()=>go('journey')}><ArrowUpRight size={19}/><span>Ver jornada</span></Button>
+      </div>
+      <details className="identity-planning" id="identity-planning" open={planningOpen} onToggle={event=>setPlanningOpen(event.currentTarget.open)}>
+        <summary><CalendarClock size={19}/>Planejamento do mês<span>Orçamentos e compromissos</span></summary>
 
-      <RewardHistory game={state.gamification} limit={3}/>
-      <div className="below-overview-monthly-summary">{monthlySummary}</div>
-      {onMonth&&<FirstSteps key={state.user.id} state={state} budgetRevision={budgetRevision} onAccount={()=>go('accounts')} onEntry={()=>go('entries')} onBudget={()=>{onMonth(dateToday().slice(0,7));requestAnimationFrame(()=>{const target=document.getElementById('monthly-budget-guide');target?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});target?.focus({preventScroll:true})})}}/>}
+
+      {onMonth&&<FirstSteps key={state.user.id} state={state} budgetRevision={budgetRevision} onAccount={()=>go('accounts')} onEntry={()=>go('entries')} onBudget={()=>{setPlanningOpen(true);onMonth(dateToday().slice(0,7));requestAnimationFrame(()=>{const target=document.getElementById('monthly-budget-guide');target?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});target?.focus({preventScroll:true})})}}/>}
       <section id="monthly-budget-guide" tabIndex={-1}><MonthlyBudgets key={`budget:${month}`} month={month} state={state} onChanged={()=>setBudgetRevision(n=>n+1)}/></section>
       {onUpdated&&<RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={onUpdated} compact onManage={()=>go('entries')}/>}
 
-      <nav className="adventure-trail" aria-label="Sua jornada financeira">
-        <div><span className="hero-kicker">SUA JORNADA</span><h3>Um passo de cada vez.</h3><p>Organize o presente e acompanhe suas conquistas.</p></div>
-        <button type="button" onClick={() => go('entries')}><span><BookOpen size={22} /></span>Organizar registros</button>
-        <button type="button" onClick={() => go('goals')}><span><Target size={22} /></span>Construir objetivos</button>
-        <button type="button" onClick={() => go('journey')}><span><Award size={22} /></span>Ver evolução</button>
-      </nav>
+      </details>
+      <details className="identity-planning"><summary><Award size={19}/>Últimas recompensas</summary><RewardHistory game={state.gamification} limit={3}/></details>
       <div className="dashboard-grid">
         <FinancialReports key={month} entries={state.entries} month={month} />
 

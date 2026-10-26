@@ -57,6 +57,6 @@ export function FinancialReports({ entries, month }: { entries: Entry[]; month: 
         <tbody>{points.map(point => <tr key={point.month}><td>{monthName(point.month)}</td><td>{currency(point.income)}</td><td>{currency(point.expenses)}</td><td>{currency(point.result)}</td></tr>)}</tbody>
       </table></div></details>
     </> : <EmptyState icon={<BarChart3 size={26} />} title="Seu relatório começa aqui" text="Registre receitas e despesas para comparar os meses. Meses sem lançamentos não representam uma confirmação de saldo zero." />}
-    <p className="report-note">Valores registrados por mês, incluindo lançamentos futuros e parcelas no vencimento. Ajustes e pagamentos de fatura não entram neste relatório. Resultado não é saldo disponível.</p>
+    <details className="identity-help"><summary>Entenda os valores do gráfico</summary><p className="report-note">Valores registrados por mês, incluindo lançamentos futuros e parcelas no vencimento. Ajustes e pagamentos de fatura não entram neste relatório. Resultado não é saldo disponível.</p></details>
   </Card>
 }

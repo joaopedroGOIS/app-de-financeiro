@@ -29,10 +29,10 @@ const nav: { id: PageId; label: string; short: string; icon: LucideIcon }[] = [
   { id: 'dashboard', label: 'Visão geral', short: 'Início', icon: BarChart3 },
   { id: 'accounts', label: 'Minhas contas', short: 'Contas', icon: Wallet },
   { id: 'cards', label: 'Cartões de crédito', short: 'Cartões', icon: CreditCard },
-  { id: 'entries', label: 'Movimentações', short: 'Transações', icon: ArrowDownLeft },
+  { id: 'entries', label: 'Movimentações', short: 'Movimentos', icon: ArrowDownLeft },
   { id: 'goals', label: 'Metas & Sonhos', short: 'Metas', icon: Target },
   { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem },
-  { id: 'journey', label: 'Evolução', short: 'Evolução', icon: Award },
+  { id: 'journey', label: 'Evolução', short: 'Jornada', icon: Award },
 ]
 
 function pageFromHash(): PageId {
@@ -368,7 +368,7 @@ export default function App() {
     toast: showToast,
   }
   return (
-    <div className="app-shell">
+    <div className="app-shell identity-app">
       <aside className="sidebar">
         <button type="button" className="sidebar-brand-button" onClick={() => go('dashboard')}><Brand /></button>
         <p className="sidebar-tagline">Sua grana. Seu jogo.<br />Sua evolução.</p>
@@ -377,7 +377,7 @@ export default function App() {
           {nav.map(item => (
             <button key={item.id} type="button" className={`nav-link ${page === item.id ? 'selected' : ''}`} aria-label={item.label} title={item.label} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
               <item.icon size={18} strokeWidth={page === item.id ? 2.3 : 1.9} />
-              {item.label}
+              {item.short}
               {item.id === 'goals' && state.goals.length > 0 && <span className="nav-badge">{state.goals.length}</span>}
             </button>
           ))}
@@ -466,8 +466,8 @@ export default function App() {
             <PageHeading
               className="dashboard-page-heading"
               eyebrow="VISÃO FINANCEIRA"
-              title={`Visão geral de ${monthName(month)}`}
-              description="Sua situação financeira, seus objetivos e sua evolução em uma única tela."
+              title="Seu espaço"
+              description=""
               action={<div className="dashboard-page-actions">{monthPicker}<Button onClick={createDashboardEntry}><Plus size={17} />Nova movimentação</Button></div>}
             />
             <DashboardPage {...pageProps} month={month} onUpdated={refresh} onMonth={setMonth}/>
@@ -480,7 +480,7 @@ export default function App() {
               description="Receitas, despesas e ajustes organizados com clareza."
               action={<div className="entry-page-actions">{monthPicker}<CsvImport state={state} onUpdated={refresh}/><Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button></div>}
             />
-            <RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={refresh}/>
+            <details className="identity-planning"><summary><CreditCard size={19}/>Compromissos recorrentes</summary><RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={refresh}/></details>
             <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={null} />
           </>}
 
@@ -628,6 +628,3 @@ export default function App() {
     </div>
   )
 }
-
-
-
