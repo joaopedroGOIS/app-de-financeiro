@@ -15,6 +15,8 @@ import { DashboardPage } from './pages/Dashboard'
 import { EntriesPage } from './pages/Entries'
 import { CsvImport } from './CsvImportDialog'
 import { RecurringExpenses } from './RecurringExpenses'
+import { confirmedRewardEffect, enqueueRewardEffect, RewardCelebration } from './ActionEffects'
+import type { RewardEffect } from './ActionEffects'
 import {PasswordAccess} from './PasswordAccess'
 import {initializeRecovery,leaveRecovery} from './data'
 import type { EntryFilter } from './pages/Entries'
@@ -149,6 +151,11 @@ export default function App() {
   const [analysis, setAnalysis] = useState<Record<string, Analysis>>({})
   const [analysisLoading, setAnalysisLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null)
+  const [rewardEffects, setRewardEffects] = useState<RewardEffect[]>([])
+  const effectId = useRef(0)
+  const toastId = useRef(0)
+  const refreshRequest = useRef(0)
+  const acceptedRefresh = useRef(0)
   const [formError, setFormError] = useState('')
   const [query, setQuery] = useState('')
     const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
@@ -163,10 +170,15 @@ export default function App() {
   const lastProgress = useRef<State | null>(null)
   modeRef.current = mode
 
-  const showToast = (message: string, tone: 'success' | 'error' = 'success') => setToast({ message, tone })
+  const showToast = (message: string, tone: 'success' | 'error' = 'success') => { toastId.current++; setToast({ message, tone }) }
   const refresh = async () => {
+    const request = ++refreshRequest.current
     const data = await api<State>('/state')
+    if (request < acceptedRefresh.current) return lastProgress.current ?? data
+    acceptedRefresh.current = request
     const before=lastProgress.current
+    const effect=confirmedRewardEffect(before,data)
+    if(effect){const next={...effect,id:++effectId.current};setRewardEffects(queue=>enqueueRewardEffect(queue,next))}
     rewardNotice.current=before?.user.id===data.user.id ? rewardFeedback(before.progress,data.progress) : ''
     if(before?.user.id===data.user.id && data.stats.financialClass && before.stats.financialClass && before.stats.financialClass!==data.stats.financialClass) {
       rewardNotice.current += ` Sua classe financeira agora é ${data.stats.financialClass}.`
@@ -177,6 +189,8 @@ export default function App() {
   }
 
   const boot = (afterAuth = false) => {
+    lastProgress.current=null
+    setRewardEffects([])
     setChecking(true)
     refresh()
       .then(() => setSessionError(''))
@@ -461,7 +475,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="page-content">
+        <div className="page-content" key={page}>
           {page === 'dashboard' && <>
             <PageHeading
               className="dashboard-page-heading"
@@ -624,7 +638,8 @@ export default function App() {
         />
       )}
 
-      {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+      {toast && <Toast key={toastId.current} message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+      {rewardEffects[0] && <RewardCelebration key={rewardEffects[0].id} effect={rewardEffects[0]} onClose={()=>setRewardEffects(queue=>queue.slice(1))}/>}
     </div>
   )
 }

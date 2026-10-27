@@ -1,0 +1,29 @@
+/* Short, finite effects. Financial content stays interactive throughout. */
+.identity-app .page-content{animation:page-arrive 240ms ease-out both}
+.identity-app button:not(:disabled){transition:background-color 160ms ease,border-color 160ms ease,box-shadow 160ms ease,transform 140ms ease}
+.identity-app button:not(:disabled):active{transform:scale(.97)}
+@media(hover:hover){.identity-actions button:hover{transform:translateY(-3px);box-shadow:var(--shadow-sm)}.identity-app .nav-link:hover{transform:translateY(-1px)}}
+.identity-app .progress>span,.identity-app .progress>div{transition:width 550ms cubic-bezier(.2,.7,.2,1)}
+.identity-app .progress-ring-value{transition:stroke-dashoffset 550ms ease}
+.identity-app .modal-backdrop{animation:backdrop-arrive 160ms ease-out both}
+.identity-app .modal{animation:dialog-arrive 200ms ease-out both}
+.identity-app .toast{animation:feedback-arrive 220ms ease-out both}
+.identity-app .toast.success>svg:first-child{animation:check-arrive 340ms ease-out both;color:var(--success)}
+.identity-app .entry-row{animation:row-arrive 220ms ease-out both}
+.identity-app details[open]>.card,.identity-app details[open]>section{animation:row-arrive 180ms ease-out both}
+.reward-celebration{position:fixed;z-index:55;top:90px;right:28px;display:flex;align-items:center;gap:14px;width:min(420px,calc(100vw - 32px));padding:19px 42px 19px 18px;border-radius:23px;border:1px solid var(--primary-text);background:var(--surface);color:var(--text);box-shadow:var(--shadow-lg);isolation:isolate;animation:reward-arrive 380ms cubic-bezier(.2,.8,.2,1) both}
+.reward-emblem{display:grid;place-items:center;width:52px;height:58px;flex-shrink:0;color:var(--primary-text);background:var(--primary-soft);border-radius:17px;animation:check-arrive 450ms ease-out both}
+.is-level-up .reward-emblem{clip-path:polygon(50% 0,94% 27%,85% 76%,50% 100%,15% 76%,6% 27%);border-radius:0;background:linear-gradient(140deg,var(--accent-2),var(--primary-strong));color:var(--on-primary)}
+.reward-celebration-copy{min-width:0}.reward-celebration-copy>strong{font-size:15px;line-height:1.4;display:block}.reward-gains{display:flex;flex-wrap:wrap;gap:9px;margin-top:9px;color:var(--primary-text);font-size:13px;font-weight:700}.reward-gains>span{display:flex;align-items:center;gap:5px}.reward-gains .reward-coins{color:var(--warning)}
+.reward-dismiss{position:absolute;top:9px;right:8px;border:0;background:transparent;color:var(--text-secondary);min-width:32px;min-height:32px;display:grid;place-items:center;border-radius:10px;cursor:pointer}.reward-dismiss:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.reward-sparks{position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none;z-index:-1}.reward-sparks i{position:absolute;left:calc(7% + var(--spark-index)*7%);top:75%;width:5px;height:9px;border-radius:2px;background:var(--accent);opacity:0;animation:spark-rise 900ms ease-out calc(var(--spark-index)*35ms) both}.reward-sparks i:nth-child(3n){background:var(--warning)}.reward-sparks i:nth-child(3n + 1){background:var(--success)}
+@keyframes page-arrive{from{opacity:.3;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes backdrop-arrive{from{opacity:0}to{opacity:1}}
+@keyframes dialog-arrive{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:none}}
+@keyframes feedback-arrive{from{opacity:0;translate:0 10px}to{opacity:1;translate:0 0}}
+@keyframes check-arrive{from{scale:.7;opacity:.2}to{scale:1;opacity:1}}
+@keyframes row-arrive{from{opacity:.4;translate:0 5px}to{opacity:1;translate:0 0}}
+@keyframes reward-arrive{from{opacity:0;translate:0 -12px;scale:.96}to{opacity:1;translate:0 0;scale:1}}
+@keyframes spark-rise{0%{opacity:0;transform:translateY(0) rotate(0)}25%{opacity:.7}100%{opacity:0;transform:translateY(-90px) rotate(100deg)}}
+@media(max-width:760px){.reward-celebration{top:76px;right:16px;padding:15px 40px 15px 14px;gap:11px}.reward-emblem{width:43px;height:49px}.reward-celebration-copy>strong{font-size:14px}}
+@media(prefers-reduced-motion:reduce){.identity-app .page-content,.identity-app .modal-backdrop,.identity-app .modal,.identity-app .toast,.identity-app .toast.success>svg:first-child,.identity-app .entry-row,.identity-app details[open]>.card,.identity-app details[open]>section,.reward-celebration,.reward-emblem,.reward-sparks i{animation:none!important}.identity-app button,.identity-app .progress>span,.identity-app .progress>div,.identity-app .progress-ring-value{transition:none!important}.identity-app button:hover,.identity-app button:active{transform:none!important}.reward-sparks{display:none}}
