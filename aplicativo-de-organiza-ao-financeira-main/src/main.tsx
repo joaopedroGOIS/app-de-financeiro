@@ -8,6 +8,8 @@ import './styles/missions.css'
 import './styles/budgets.css'
 import './styles/recurring.css'
 import './styles/access.css'
+import './styles/identity.css'
+import './styles/effects.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><App /></React.StrictMode>

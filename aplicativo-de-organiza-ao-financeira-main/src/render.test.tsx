@@ -48,7 +48,7 @@ g.localStorage = {
 g.matchMedia = matchMedia
 g.window = { matchMedia }
 const dataset: Record<string, string> = {}
-const metaAttributes: Record<string, string> = { content: '#111116' }
+const metaAttributes: Record<string, string> = { content: '#202126' }
 g.document = {
   documentElement: { dataset, style: {} as Record<string, string> },
   querySelector: () => ({ setAttribute: (name: string, value: string) => { metaAttributes[name] = value } }),
@@ -111,10 +111,10 @@ test('preferência é gravada e o tema resolvido é aplicado no documento', () =
   assert.equal(readStoredMode(), 'light')
   applyResolvedTheme('light')
   assert.equal(dataset.theme, 'light')
-  assert.equal(metaAttributes.content, '#F4F7FC')
+  assert.equal(metaAttributes.content, '#e9eef3')
   applyResolvedTheme('dark')
   assert.equal(dataset.theme, 'dark')
-  assert.equal(metaAttributes.content, '#111116')
+  assert.equal(metaAttributes.content, '#202126')
 })
 
 test('dashboard renderiza saldo, nível, Graninha, sequência e os totais do mês', () => {

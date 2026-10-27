@@ -15,6 +15,8 @@ import { DashboardPage } from './pages/Dashboard'
 import { EntriesPage } from './pages/Entries'
 import { CsvImport } from './CsvImportDialog'
 import { RecurringExpenses } from './RecurringExpenses'
+import { confirmedRewardEffect, enqueueRewardEffect, RewardCelebration } from './ActionEffects'
+import type { RewardEffect } from './ActionEffects'
 import {PasswordAccess} from './PasswordAccess'
 import {initializeRecovery,leaveRecovery} from './data'
 import type { EntryFilter } from './pages/Entries'
@@ -29,10 +31,10 @@ const nav: { id: PageId; label: string; short: string; icon: LucideIcon }[] = [
   { id: 'dashboard', label: 'Visão geral', short: 'Início', icon: BarChart3 },
   { id: 'accounts', label: 'Minhas contas', short: 'Contas', icon: Wallet },
   { id: 'cards', label: 'Cartões de crédito', short: 'Cartões', icon: CreditCard },
-  { id: 'entries', label: 'Movimentações', short: 'Transações', icon: ArrowDownLeft },
+  { id: 'entries', label: 'Movimentações', short: 'Movimentos', icon: ArrowDownLeft },
   { id: 'goals', label: 'Metas & Sonhos', short: 'Metas', icon: Target },
   { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem },
-  { id: 'journey', label: 'Evolução', short: 'Evolução', icon: Award },
+  { id: 'journey', label: 'Evolução', short: 'Jornada', icon: Award },
 ]
 
 function pageFromHash(): PageId {
@@ -149,6 +151,11 @@ export default function App() {
   const [analysis, setAnalysis] = useState<Record<string, Analysis>>({})
   const [analysisLoading, setAnalysisLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null)
+  const [rewardEffects, setRewardEffects] = useState<RewardEffect[]>([])
+  const effectId = useRef(0)
+  const toastId = useRef(0)
+  const refreshRequest = useRef(0)
+  const acceptedRefresh = useRef(0)
   const [formError, setFormError] = useState('')
   const [query, setQuery] = useState('')
     const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
@@ -163,10 +170,15 @@ export default function App() {
   const lastProgress = useRef<State | null>(null)
   modeRef.current = mode
 
-  const showToast = (message: string, tone: 'success' | 'error' = 'success') => setToast({ message, tone })
+  const showToast = (message: string, tone: 'success' | 'error' = 'success') => { toastId.current++; setToast({ message, tone }) }
   const refresh = async () => {
+    const request = ++refreshRequest.current
     const data = await api<State>('/state')
+    if (request < acceptedRefresh.current) return lastProgress.current ?? data
+    acceptedRefresh.current = request
     const before=lastProgress.current
+    const effect=confirmedRewardEffect(before,data)
+    if(effect){const next={...effect,id:++effectId.current};setRewardEffects(queue=>enqueueRewardEffect(queue,next))}
     rewardNotice.current=before?.user.id===data.user.id ? rewardFeedback(before.progress,data.progress) : ''
     if(before?.user.id===data.user.id && data.stats.financialClass && before.stats.financialClass && before.stats.financialClass!==data.stats.financialClass) {
       rewardNotice.current += ` Sua classe financeira agora é ${data.stats.financialClass}.`
@@ -177,6 +189,8 @@ export default function App() {
   }
 
   const boot = (afterAuth = false) => {
+    lastProgress.current=null
+    setRewardEffects([])
     setChecking(true)
     refresh()
       .then(() => setSessionError(''))
@@ -368,7 +382,7 @@ export default function App() {
     toast: showToast,
   }
   return (
-    <div className="app-shell">
+    <div className="app-shell identity-app">
       <aside className="sidebar">
         <button type="button" className="sidebar-brand-button" onClick={() => go('dashboard')}><Brand /></button>
         <p className="sidebar-tagline">Sua grana. Seu jogo.<br />Sua evolução.</p>
@@ -377,7 +391,7 @@ export default function App() {
           {nav.map(item => (
             <button key={item.id} type="button" className={`nav-link ${page === item.id ? 'selected' : ''}`} aria-label={item.label} title={item.label} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
               <item.icon size={18} strokeWidth={page === item.id ? 2.3 : 1.9} />
-              {item.label}
+              {item.short}
               {item.id === 'goals' && state.goals.length > 0 && <span className="nav-badge">{state.goals.length}</span>}
             </button>
           ))}
@@ -461,13 +475,13 @@ export default function App() {
           </div>
         </header>
 
-        <div className="page-content">
+        <div className="page-content" key={page}>
           {page === 'dashboard' && <>
             <PageHeading
               className="dashboard-page-heading"
               eyebrow="VISÃO FINANCEIRA"
-              title={`Visão geral de ${monthName(month)}`}
-              description="Sua situação financeira, seus objetivos e sua evolução em uma única tela."
+              title="Seu espaço"
+              description=""
               action={<div className="dashboard-page-actions">{monthPicker}<Button onClick={createDashboardEntry}><Plus size={17} />Nova movimentação</Button></div>}
             />
             <DashboardPage {...pageProps} month={month} onUpdated={refresh} onMonth={setMonth}/>
@@ -480,7 +494,7 @@ export default function App() {
               description="Receitas, despesas e ajustes organizados com clareza."
               action={<div className="entry-page-actions">{monthPicker}<CsvImport state={state} onUpdated={refresh}/><Button onClick={() => { if (!state.accounts.length) { showToast('Crie uma conta antes de registrar movimentações.'); return go('accounts') } setEditEntry(null); open('entry') }}><Plus size={18} />Nova movimentação</Button></div>}
             />
-            <RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={refresh}/>
+            <details className="identity-planning"><summary><CreditCard size={19}/>Compromissos recorrentes</summary><RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={refresh}/></details>
             <EntriesPage {...pageProps} month={month} query={query} entryFilter={entryFilter} setQuery={setQuery} setEntryFilter={setEntryFilter} monthPicker={null} />
           </>}
 
@@ -624,10 +638,8 @@ export default function App() {
         />
       )}
 
-      {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+      {toast && <Toast key={toastId.current} message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+      {rewardEffects[0] && <RewardCelebration key={rewardEffects[0].id} effect={rewardEffects[0]} onClose={()=>setRewardEffects(queue=>queue.slice(1))}/>}
     </div>
   )
 }
-
-
-
