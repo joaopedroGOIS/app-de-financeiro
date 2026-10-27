@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Coins, Gem, Sparkles, X } from 'lucide-react'
 import type { Progress } from './data'
 
@@ -23,21 +24,39 @@ export function enqueueRewardEffect(queue: RewardEffect[], next: RewardEffect): 
 
 export function RewardCelebration({ effect, onClose }: { effect: RewardEffect; onClose: () => void }) {
   const closeRef = useRef(onClose)
+  const [leaving, setLeaving] = useState(false)
+  const duration = effect.level ? 6500 : 4500
+  const kind = effect.level ? 'level' : effect.coins && !effect.xp ? 'coins' : 'xp'
   closeRef.current = onClose
   useEffect(() => {
-    const timer = window.setTimeout(() => closeRef.current(), effect.level ? 6500 : 4500)
+    const timer = window.setTimeout(() => setLeaving(true), duration)
     return () => window.clearTimeout(timer)
-  }, [effect.id, effect.level])
-  return <aside className={`reward-celebration ${effect.level ? 'is-level-up' : ''}`} aria-label="Recompensa confirmada">
-    <div className="reward-sparks" aria-hidden="true">{Array.from({ length: effect.level ? 12 : 6 }, (_, i) => <i key={i} style={{ '--spark-index': i } as React.CSSProperties} />)}</div>
-    <span className="reward-emblem" aria-hidden="true">{effect.level ? <Gem size={30} /> : <Sparkles size={25} />}</span>
+  }, [effect.id, duration])
+  useEffect(() => {
+    if (!leaving) return
+    const timer = window.setTimeout(() => closeRef.current(), 280)
+    return () => window.clearTimeout(timer)
+  }, [leaving])
+  return <aside className={`reward-celebration reward-${kind} ${effect.level ? 'is-level-up' : ''} ${leaving ? 'is-leaving' : ''}`} style={{'--reward-duration':`${duration}ms`} as CSSProperties} aria-label="Recompensa confirmada">
+    <div className="reward-aura" aria-hidden="true"/>
+    <div className="reward-sparks" aria-hidden="true">{Array.from({ length: effect.level ? 18 : 10 }, (_, i) => {
+      const angle = i * 2.39996
+      const radius = 65 + i % 4 * 23
+      return <i key={i} style={{ '--spark-index': i, '--spark-x': `${Math.cos(angle)*radius}px`, '--spark-y': `${Math.sin(angle)*radius}px` } as CSSProperties} />
+    })}</div>
+    <div className="reward-emblem-stage" aria-hidden="true"><span className="reward-orbit"/><span className="reward-orbit reward-orbit-second"/>
+      <span className="reward-emblem">{effect.level ? <><Gem size={31}/><b>{effect.level}</b></> : kind==='coins' ? <Coins size={33}/> : <Sparkles size={32}/>}</span>
+      <span className="reward-glint">✦</span><span className="reward-glint reward-glint-small">✦</span>
+    </div>
     <div className="reward-celebration-copy" role="status" aria-live="polite" aria-atomic="true">
-      <strong>{effect.level ? `Você chegou ao nível ${effect.level}!` : 'Seu cuidado rendeu!'}</strong>
+      <small className="reward-kicker">{effect.level ? 'NOVA CONQUISTA' : kind==='coins' ? 'RECOMPENSA RECEBIDA' : 'MAIS UM PASSO'}</small>
+      <strong>{effect.level ? `Você chegou ao nível ${effect.level}!` : kind==='coins' ? 'Sua dedicação vale ouro.' : 'Sua evolução continua.'}</strong>
       <div className="reward-gains">
-        {effect.xp > 0 && <span><Sparkles size={15} aria-hidden="true" />+{effect.xp} XP</span>}
-        {effect.coins > 0 && <span className="reward-coins"><Coins size={15} aria-hidden="true" />+{effect.coins} Graninhas</span>}
+        {effect.xp > 0 && <span><Sparkles size={16} aria-hidden="true" /><b>+{effect.xp}</b> XP</span>}
+        {effect.coins > 0 && <span className="reward-coins"><Coins size={16} aria-hidden="true" /><b>+{effect.coins}</b> Graninhas</span>}
       </div>
     </div>
-    <button type="button" className="reward-dismiss" onClick={onClose} aria-label="Fechar recompensa"><X size={17}/></button>
+    <button type="button" className="reward-dismiss" onClick={()=>setLeaving(true)} aria-label="Fechar recompensa"><X size={18}/></button>
+    <span className="reward-lifetime" aria-hidden="true"/>
   </aside>
 }
