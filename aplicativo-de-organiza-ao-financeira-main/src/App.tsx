@@ -17,6 +17,7 @@ import { CsvImport } from './CsvImportDialog'
 import { RecurringExpenses } from './RecurringExpenses'
 import { confirmedRewardEffect, enqueueRewardEffect, RewardCelebration } from './ActionEffects'
 import type { RewardEffect } from './ActionEffects'
+import { EffectsPreview } from './EffectsPreview'
 import {PasswordAccess} from './PasswordAccess'
 import {initializeRecovery,leaveRecovery} from './data'
 import type { EntryFilter } from './pages/Entries'
@@ -601,6 +602,7 @@ export default function App() {
             <span className="field-label">Aparência do aplicativo</span>
             <span className="field-hint">A troca é imediata e a preferência fica salva na sua conta.</span>
             <ThemeSelector mode={mode} onChange={changeTheme} />
+            <details className="identity-help"><summary>Ver prévia das animações</summary><EffectsPreview/></details>
           </div>
 
           <div className="profile-links">

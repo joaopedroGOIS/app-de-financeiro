@@ -22,7 +22,7 @@ export function enqueueRewardEffect(queue: RewardEffect[], next: RewardEffect): 
     level: tail.level == null ? next.level : Math.max(tail.level, next.level ?? tail.level) }]
 }
 
-export function RewardCelebration({ effect, onClose }: { effect: RewardEffect; onClose: () => void }) {
+export function RewardCelebration({ effect, onClose, preview=false }: { effect: RewardEffect; onClose: () => void; preview?: boolean }) {
   const closeRef = useRef(onClose)
   const [leaving, setLeaving] = useState(false)
   const duration = effect.level ? 6500 : 4500
@@ -37,7 +37,7 @@ export function RewardCelebration({ effect, onClose }: { effect: RewardEffect; o
     const timer = window.setTimeout(() => closeRef.current(), 280)
     return () => window.clearTimeout(timer)
   }, [leaving])
-  return <aside className={`reward-celebration reward-${kind} ${effect.level ? 'is-level-up' : ''} ${leaving ? 'is-leaving' : ''}`} style={{'--reward-duration':`${duration}ms`} as CSSProperties} aria-label="Recompensa confirmada">
+  return <aside className={`reward-celebration reward-${kind} ${effect.level ? 'is-level-up' : ''} ${leaving ? 'is-leaving' : ''}`} style={{'--reward-duration':`${duration}ms`} as CSSProperties} aria-label={preview?'Exemplo de recompensa':'Recompensa confirmada'}>
     <div className="reward-aura" aria-hidden="true"/>
     <div className="reward-sparks" aria-hidden="true">{Array.from({ length: effect.level ? 18 : 10 }, (_, i) => {
       const angle = i * 2.39996
@@ -49,7 +49,7 @@ export function RewardCelebration({ effect, onClose }: { effect: RewardEffect; o
       <span className="reward-glint">✦</span><span className="reward-glint reward-glint-small">✦</span>
     </div>
     <div className="reward-celebration-copy" role="status" aria-live="polite" aria-atomic="true">
-      <small className="reward-kicker">{effect.level ? 'NOVA CONQUISTA' : kind==='coins' ? 'RECOMPENSA RECEBIDA' : 'MAIS UM PASSO'}</small>
+      <small className="reward-kicker">{preview?'DEMONSTRAÇÃO':effect.level ? 'NOVA CONQUISTA' : kind==='coins' ? 'RECOMPENSA RECEBIDA' : 'MAIS UM PASSO'}</small>
       <strong>{effect.level ? `Você chegou ao nível ${effect.level}!` : kind==='coins' ? 'Sua dedicação vale ouro.' : 'Sua evolução continua.'}</strong>
       <div className="reward-gains">
         {effect.xp > 0 && <span><Sparkles size={16} aria-hidden="true" /><b>+{effect.xp}</b> XP</span>}
