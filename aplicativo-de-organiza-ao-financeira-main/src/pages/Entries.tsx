@@ -89,7 +89,7 @@ export function EntriesPage({ state, month, query, entryFilter, setQuery, setEnt
             action={state.accounts.length ? addButton : <Button onClick={() => go('accounts')}>Criar conta</Button>}
           />
         )}
-        <p className="card-description">Compras de cartão aparecem no mês do vencimento de cada parcela. Pagamentos de fatura aparecem como saídas da conta, sem entrar novamente nas despesas; gerencie esses registros em Cartões.</p>
+        <details className="identity-help"><summary>Como os cartões entram no histórico</summary><p className="card-description">Compras de cartão aparecem no mês do vencimento de cada parcela. Pagamentos de fatura aparecem como saídas da conta, sem entrar novamente nas despesas; gerencie esses registros em Cartões.</p></details>
         <div className="list-bottom">{filtered.length} {filtered.length === 1 ? 'movimentação encontrada' : 'movimentações encontradas'}</div>
       </Card>
     </>
