@@ -1,6 +1,11 @@
 /** Recovery tokens stay in memory and are never treated as the normal app session. */
 export type RecoveryRedirect={kind:'none'}|{kind:'invalid'}|{kind:'update';accessToken:string}
 export const RECOVERY_REDIRECT_URL='https://granae-cash.vercel.app/'
+/** Volta para o mesmo site em que o pedido foi feito (produção, prévia ou localhost).
+ * Se a origem não estiver nas Redirect URLs do Supabase, ele usa a Site URL do projeto. */
+export function recoveryRedirectUrl(origin=typeof window==='undefined'?'':window.location.origin) {
+ return /^https?:\/\//.test(origin)?`${origin}/`:RECOVERY_REDIRECT_URL
+}
 export function parseRecoveryRedirect(hash:string):RecoveryRedirect {
  if(hash==='#/recuperar-senha')return {kind:'invalid'}
  const params=new URLSearchParams(hash.replace(/^#/,''))
@@ -14,8 +19,8 @@ export function passwordProblem(password:string,confirmation:string) {
  if(password!==confirmation)return 'As senhas não coincidem.'
  return ''
 }
-export async function recoveryRequest(config:{url:string;key:string},email:string,fetcher:typeof fetch=fetch) {
- const response=await fetcher(`${config.url}/auth/v1/recover?redirect_to=${encodeURIComponent(RECOVERY_REDIRECT_URL)}`,{method:'POST',headers:{apikey:config.key,'Content-Type':'application/json'},body:JSON.stringify({email:email.trim()})})
+export async function recoveryRequest(config:{url:string;key:string},email:string,fetcher:typeof fetch=fetch,redirectTo=recoveryRedirectUrl()) {
+ const response=await fetcher(`${config.url}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,{method:'POST',headers:{apikey:config.key,'Content-Type':'application/json'},body:JSON.stringify({email:email.trim()})})
  if(!response.ok)throw new Error(response.status===429?'Aguarde alguns minutos antes de solicitar outro link.':'Não foi possível solicitar o link agora. Tente novamente mais tarde.')
 }
 export async function recoveryUpdate(config:{url:string;key:string},token:string,password:string,fetcher:typeof fetch=fetch) {

@@ -1,11 +1,11 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {renderToStaticMarkup} from 'react-dom/server'
-import {parseRecoveryRedirect,passwordProblem,recoveryRequest,recoveryUpdate,RECOVERY_REDIRECT_URL} from './recovery'
+import {parseRecoveryRedirect,passwordProblem,recoveryRequest,recoveryUpdate,RECOVERY_REDIRECT_URL,recoveryRedirectUrl} from './recovery'
 import {PasswordAccess} from './PasswordAccess'
 import {firstStepStatus} from './FirstSteps'
 import type {Account,Entry} from './data'
-import {initializeRecovery,leaveRecovery} from './data'
+import {fetchAllPages,initializeRecovery,leaveRecovery,PAGE_SIZE,userIdFromToken} from './data'
 
 test('recuperação reconhece somente links apropriados e trata erro, ausência de token e recarga',()=>{
  assert.deepEqual(parseRecoveryRedirect('#/movimentacoes'),{kind:'none'})
@@ -29,6 +29,30 @@ test('pedido de link usa destino oficial, não envia sessão e trata limites sem
  assert.equal((calls[0].options?.headers as Record<string,string>).Authorization,undefined)
  assert.equal(JSON.parse(String(calls[0].options?.body)).email,'user@example.test')
  await assert.rejects(recoveryRequest({url:'https://project.example',key:'public-test'},'a@example.test',(async()=>new Response('{}',{status:429})) as typeof fetch),/Aguarde/)
+})
+test('link de recuperação volta para o mesmo site em que foi pedido',async()=>{
+ assert.equal(recoveryRedirectUrl('https://app-de-financeiro.vercel.app'),'https://app-de-financeiro.vercel.app/')
+ assert.equal(recoveryRedirectUrl('http://localhost:5173'),'http://localhost:5173/')
+ assert.equal(recoveryRedirectUrl(''),RECOVERY_REDIRECT_URL)
+ assert.equal(recoveryRedirectUrl('null'),RECOVERY_REDIRECT_URL)
+ const calls:string[]=[]
+ await recoveryRequest({url:'https://project.example',key:'public-test'},'a@example.test',(async(url:RequestInfo|URL)=>{calls.push(String(url));return new Response('{}',{status:200})}) as typeof fetch,'https://preview.example/')
+ assert.equal(new URL(calls[0]).searchParams.get('redirect_to'),'https://preview.example/')
+})
+test('id do usuário vem do token sem consulta extra e cai para o servidor se o token for ilegível',()=>{
+ const encode=(value:object)=>btoa(JSON.stringify(value)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
+ assert.equal(userIdFromToken(`h.${encode({sub:'5f1c2d3e-0000-4000-8000-00000000abcd',role:'authenticated'})}.s`),'5f1c2d3e-0000-4000-8000-00000000abcd')
+ for(const token of [null,'','sem-pontos','a.%%%.c',`h.${encode({sub:''})}.s`,`h.${encode({sub:42})}.s`])assert.equal(userIdFromToken(token),null)
+})
+test('listas longas são lidas página por página, sem truncar em 1.000 linhas',async()=>{
+ const source=Array.from({length:2503},(_,i)=>i)
+ const requested:number[]=[]
+ const all=await fetchAllPages(async(offset,limit)=>{requested.push(offset);return source.slice(offset,offset+limit)})
+ assert.equal(all.length,2503)
+ assert.deepEqual(requested,[0,1000,2000])
+ const exact=await fetchAllPages(async(offset,limit)=>source.slice(0,2000).slice(offset,offset+limit))
+ assert.equal(exact.length,2000)
+ assert.equal(PAGE_SIZE,1000)
 })
 test('troca usa apenas o token de recuperação e encerra essa sessão, sem credencial administrativa',async()=>{
  const calls:{url:string;options?:RequestInit}[]=[]
