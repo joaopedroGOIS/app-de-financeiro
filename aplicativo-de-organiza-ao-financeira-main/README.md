@@ -6,23 +6,23 @@ Reconstrução web do núcleo do **Granaê**, baseada no [Documento Mestre v1.0]
 
 ## Executar
 
-Requer Node.js 22+.
+Requer Node.js 22+ e um projeto Supabase com as migrações de `../supabase/migrations` aplicadas (veja [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)). Copie `.env.example` para `.env.local` e informe `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`.
 
 ```bash
 npm install
 npm run dev
 ```
 
-O Vite serve o aplicativo em `http://localhost:5173` e encaminha `/api` para o servidor Express em `http://127.0.0.1:3001`. Cadastre-se na tela inicial para começar. O banco SQLite é criado em `.data/granae.sqlite` e não é enviado ao Git.
+O Vite serve o aplicativo em `http://localhost:5173`. O navegador fala direto com o Supabase (Auth + Data API); não há servidor próprio. Cadastre-se na tela inicial para começar.
 
 ```bash
-npm test       # testes de domínio e integração HTTP
+npm test       # testes de regras e renderização
 npm run build  # checagem TypeScript e build do frontend
 ```
 
 ## Funcionalidades implementadas
 
-- **Conta e isolamento:** cadastro com senha de no mínimo 8 caracteres e login com senha derivada por scrypt, sessão em cookie HttpOnly (`SameSite=None; Secure; Partitioned` na prévia HTTPS em iframe; `Lax` no desenvolvimento HTTP) e consultas/mutações delimitadas pelo usuário autenticado. Para a prévia funcionar mesmo quando o navegador ou gateway bloquear cookies ou o cabeçalho padrão `Authorization`, o frontend solicita um token de sessão independente no cadastro/login e o envia pelo cabeçalho próprio `X-Granae-Session`. Ele vale por 24 horas, fica apenas em `sessionStorage` na aba e é revogável ao sair. Essa alternativa deliberada deve passar por revisão de segurança antes de produção.
+- **Conta e isolamento:** cadastro e login pelo Supabase Auth (senha de no mínimo 8 caracteres, recuperação por e-mail). A sessão fica em `sessionStorage` na aba e é renovada pelo refresh token. Cada tabela tem Row Level Security: o usuário só lê e grava os próprios registros.
 - **Contas financeiras:** saldo inicial, tipo, nome, descrição e marcação explícita de participação na Reserva. Saldo calculado por saldo inicial + receitas − gastos + ajustes. Contas com movimentações não podem ser excluídas para preservar o histórico.
 - **Movimentações:** receitas, gastos e ajustes; vínculo à conta, categoria, data, valor e observação. Busca, filtros, navegação mensal e exportação CSV (inclusive lançamentos arquivados). Arquivamento preserva o registro, mas o retira dos saldos atuais.
 - **Reserva e Patrimônio:** Reserva calculada apenas a partir de saldos positivos das contas marcadas; Patrimônio registrado como saldos de contas + bens − passivos. São métricas separadas. Bens e Reserva não são usados como capacidade para Sonhos.
@@ -34,7 +34,7 @@ npm run build  # checagem TypeScript e build do frontend
 
 A economia aprovada em 15/10/2026 agora é processada no Supabase, com ledger imutável, idempotência, curva dos níveis 1–100 e classes pela reserva elegível. Consulte [Gamificação: regras, arquitetura, testes e pendências](./GAMIFICATION_RELEASE.md). A extensão de [missões, Metas, Sonhos e economia diária](./MISSIONS_RELEASE.md) usa as definições e a confirmação manual aprovadas em 16/10/2026.
 
-Ainda não há integração bancária, sincronização com Base44/Supabase, recuperação de senha, painel administrativo, histórico de classes e snapshots, motor de hábitos/missões/conquistas, inventário, loja, Tio Gansinhas animado, trilha completa de auditoria ou proteção de produção contra abuso (rate limiting, proteção contra fraude, operação multi-instância). Não use esta versão como serviço financeiro de produção sem essas etapas e revisão de segurança. O banco SQLite local precisa de backup próprio; o CSV exporta movimentações, não é um backup completo.
+Ainda não há integração bancária, sincronização com Base44, painel administrativo, histórico de classes e snapshots, motor de hábitos/missões/conquistas, inventário, loja, Tio Gansinhas animado, trilha completa de auditoria ou proteção de produção contra abuso (rate limiting, proteção contra fraude, operação multi-instância). Não use esta versão como serviço financeiro de produção sem essas etapas e revisão de segurança. Os dados ficam no Supabase e seguem a política de backup do projeto; o CSV exporta movimentações, não é um backup completo.
 
 **Importante:** aportes em objetivos registram progresso, não transferem dinheiro nem alteram o saldo das contas. Registre a movimentação da conta separadamente se ela ocorreu. Reserva não deve ser gasta automaticamente para Sonhos.
 
@@ -56,7 +56,7 @@ As cores semânticas vivem em `src/styles/tokens.css`, permitindo que a troca de
 | Automático | Acompanha `prefers-color-scheme` do dispositivo e reage à mudança em tempo real. |
 
 - A troca é imediata, sem recarregar a página; a opção ativa fica marcada com ícone de conferência e `aria-checked`.
-- A preferência é gravada em `localStorage` e, com sessão ativa, sincronizada com a conta via `PATCH /api/preferences` (tabela `user_preferences`, coluna `theme` nula até a primeira escolha) — assim vale entre dispositivos.
+- A preferência é gravada em `localStorage` e, com sessão ativa, sincronizada com a conta (tabela `user_preferences`, coluna `theme` nula até a primeira escolha) — assim vale entre dispositivos.
 - Um script inline em `index.html` aplica o tema salvo antes da primeira pintura, evitando mostrar o tema errado no carregamento.
 
 Componentes reutilizáveis em `src/ui.tsx`: cabeçalhos de página, botões, cartões financeiros e de metas, molde visual de missão, badges (incluindo raridades), anel e barra de progresso, campos, modais, estados de carregamento/erro/vazio, confirmações, toasts, gráfico de linha e rosca em SVG próprio (sem dependência nova) e seletores de tema. O cartão de missão é somente uma peça visual e não é preenchido: este repositório ainda não possui dados ou motor de missões. Ícones são `lucide-react`; emojis aparecem apenas onde são dados do usuário (símbolo de objetivo).
@@ -70,10 +70,9 @@ Componentes reutilizáveis em `src/ui.tsx`: cabeçalhos de página, botões, car
 - `src/pages/`: uma página por arquivo (dashboard, movimentações, contas, patrimônio, objetivos, jornada).
 - `src/forms.tsx`: formulários, com os mesmos campos e regras aceitos pelo servidor.
 - `src/App.tsx`: shell, navegação, topbar, modais e sincronização do tema com a conta.
-- `server/app.ts`: API autenticada Express com validação Zod, regras de escrita e isolamento por usuário.
-- `server/domain.ts`: cálculos puros de saldos, reserva/patrimônio, streak, marcos e dificuldade.
-- `server/db.ts`: SQLite, tabelas, índices e proteção de imutabilidade do ledger.
-- `server/*.test.ts`: testes de regras, isolamento/idempotência da API e da preferência de tema.
-- `src/render.test.tsx`: testes de renderização das páginas e do sistema de temas.
+- `src/data.ts`: cliente do Supabase (Auth + Data API), traduz as operações da interface em consultas e RPCs e calcula saldos, reserva e patrimônio.
+- `../supabase/migrations/`: tabelas, RLS e funções transacionais (lançamentos, cartões, recompensas, missões, importação CSV).
+- `scripts/test-*-db.mjs`: testes das migrações em um Postgres embutido (PGlite).
+- `src/*.test.tsx`: testes de regras e de renderização das páginas e do sistema de temas.
 
-Valores monetários persistidos como **inteiros de centavos**. Entradas e aportes usam `Idempotency-Key` nas requisições de criação para que um retry não duplique a operação. A interface usa URLs relativas à própria origem (`/api`) para funcionar também em prévias remotas.
+Valores monetários persistidos como **inteiros de centavos**. Entradas e aportes usam `Idempotency-Key` nas requisições de criação para que um retry não duplique a operação. Listas são lidas em páginas de 1.000 linhas (limite padrão da Data API), para que saldos nunca sejam calculados sobre um histórico truncado.
