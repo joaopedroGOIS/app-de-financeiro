@@ -163,7 +163,34 @@ async function rest<T = any>(table: string, method = 'GET', query = '', body?: u
   if (response.status === 401 && await renewSession()) response = await makeRequest()
   return await readResponse(response) as T
 }
+/** Lê o `sub` do JWT sem validá-lo: serve só para preencher `user_id`; o RLS valida o token em cada requisição. */
+export function userIdFromToken(token: string | null): string | null {
+  try {
+    const payload = token?.split('.')[1]
+    if (!payload) return null
+    const sub = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '='))).sub
+    return typeof sub === 'string' && sub ? sub : null
+  } catch { return null }
+}
+/** Evita uma ida ao servidor (`/auth/v1/user`) em cada gravação. */
+async function currentUserId(): Promise<string> {
+  return userIdFromToken(sessionToken) ?? (await authRequest('user', undefined, true)).id
+}
 const query = (values: Record<string, string>) => new URLSearchParams(values).toString()
+/** Limite padrão de linhas por resposta da Data API do Supabase (`max_rows`). */
+export const PAGE_SIZE = 1000
+/** Lê todas as páginas: sem isso, listas acima de `PAGE_SIZE` seriam truncadas em silêncio e os saldos ficariam errados. */
+export async function fetchAllPages<T>(fetchPage: (offset: number, limit: number) => Promise<T[]>, pageSize = PAGE_SIZE): Promise<T[]> {
+  const all: T[] = []
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await fetchPage(offset, pageSize)
+    all.push(...page)
+    if (page.length < pageSize) return all
+  }
+}
+/** `order` precisa terminar em uma coluna única para que as páginas não se sobreponham. */
+const restAll = <T = any>(table: string, values: Record<string, string>) =>
+  fetchAllPages<T>((offset, limit) => rest<T[]>(table, 'GET', query({ ...values, limit: String(limit), offset: String(offset) })))
 const rows = <T>(value: unknown) => value as T[]
 const one = <T>(value: unknown) => (value as T[])[0]
 export function netStats(accounts: any[], entries: any[], assets: any[], cards: CardState = emptyCardState()) {
@@ -197,31 +224,39 @@ async function loadCreditCards(): Promise<{ state: CardState; enabled: boolean }
     throw error
   }
 }
-async function getState(): Promise<State> {
+/** Falhas de leitura da gamificação nunca bloqueiam as finanças; a próxima sincronização tenta de novo. */
+const optional = <T>(promise: Promise<T>) => promise.catch(() => undefined)
+async function getGameState() {
   // Transação independente: falhas de recompensas nunca desfazem a operação financeira.
-  try { await rest('rpc/process_my_rewards','POST','',{}) } catch { /* Estado abaixo informa pendências; uma próxima sincronização reprocessa. */ }
-  let financialClass: FinancialClass | undefined
-  try { financialClass = await rest<FinancialClass>('rpc/financial_class_state','POST','',{}) } catch { /* Nova consulta tenta novamente. */ }
-  let gamification: Gamification | undefined
-  try { gamification = await rest<Gamification>('rpc/gamification_state','POST','',{}) } catch { /* Permite atualizar o banco antes/depois do frontend sem bloquear finanças. */ }
-  let missions: Missions | undefined
-  try { missions=await rest<Missions>('rpc/missions_state','POST','',{}) } catch { /* Disponível após a migration de missões. */ }
+  // Precisa terminar antes das leituras abaixo, que refletem as recompensas processadas.
+  await optional(rest('rpc/process_my_rewards','POST','',{}))
+  const [financialClass, gamification, missions] = await Promise.all([
+    optional(rest<FinancialClass>('rpc/financial_class_state','POST','',{})),
+    optional(rest<Gamification>('rpc/gamification_state','POST','',{})),
+    optional(rest<Missions>('rpc/missions_state','POST','',{})),
+  ])
+  return { financialClass, gamification, missions }
+}
+async function getState(): Promise<State> {
+  // Os dados financeiros não dependem das recompensas: as duas leituras correm em paralelo.
+  const game = getGameState()
   const [user, profiles, accounts, entries, archived, categories, subcategories, assets, goals, contributions, milestones, progress, preferences, creditCards] = await Promise.all([
     authRequest('user', undefined, true),
     rest('profiles','GET',query({select:'id,name'})),
-    rest('accounts','GET',query({select:'*',order:'created_at.asc,id.asc'})),
-    rest('entries','GET',query({select:'*',archived_at:'is.null',order:'date.desc,created_at.desc'})),
-    rest('entries','GET',query({select:'*',archived_at:'not.is.null',order:'date.desc,created_at.desc'})),
-    rest('categories','GET',query({select:'*',order:'type.asc,name.asc'})),
-    rest('subcategories','GET',query({select:'*',order:'name.asc'})),
-    rest('assets','GET',query({select:'*',order:'name.asc'})),
-    rest('goals','GET',query({select:'*',archived_at:'is.null',order:'created_at.desc'})),
-    rest('contributions','GET',query({select:'goal_id,amount_cents,date',order:'date.desc'})),
-    rest('milestone_claims','GET',query({select:'goal_id,milestone'})),
+    restAll('accounts',{select:'*',order:'created_at.asc,id.asc'}),
+    restAll('entries',{select:'*',archived_at:'is.null',order:'date.desc,created_at.desc,id.desc'}),
+    restAll('entries',{select:'*',archived_at:'not.is.null',order:'date.desc,created_at.desc,id.desc'}),
+    restAll('categories',{select:'*',order:'type.asc,name.asc,id.asc'}),
+    restAll('subcategories',{select:'*',order:'name.asc,id.asc'}),
+    restAll('assets',{select:'*',order:'name.asc,id.asc'}),
+    restAll('goals',{select:'*',archived_at:'is.null',order:'created_at.desc,id.desc'}),
+    restAll('contributions',{select:'id,goal_id,amount_cents,date',order:'date.desc,id.desc'}),
+    restAll('milestone_claims',{select:'id,goal_id,milestone',order:'id.asc'}),
     rest('player_progress','GET',query({select:'xp_total,level,graninha_balance'})),
     rest('user_preferences','GET',query({select:'theme'})),
     loadCreditCards(),
   ])
+  const { financialClass, gamification, missions } = await game
   const profile = one<any>(profiles) ?? {}
   const accountRows = rows<any>(accounts), entryRows = rows<any>(entries), assetRows = rows<any>(assets)
   const stats = netStats(accountRows, entryRows, assetRows, creditCards.state)
@@ -298,23 +333,23 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
     return await rest('rpc/monthly_budget_state','POST','',{p_month:`${month}-01`}) as T
   }
   if (path==='/budgets' && method==='POST') {
-    const user=await authRequest('user',undefined,true)
-    await rest('monthly_budgets','POST','on_conflict=user_id,month,category',{user_id:user.id,month:`${body.month}-01`,category:String(body.category).trim(),limit_cents:body.limitCents},{prefer:'resolution=merge-duplicates,return=minimal'})
+    const userId=await currentUserId()
+    await rest('monthly_budgets','POST','on_conflict=user_id,month,category',{user_id:userId,month:`${body.month}-01`,category:String(body.category).trim(),limit_cents:body.limitCents},{prefer:'resolution=merge-duplicates,return=minimal'})
     return {ok:true} as T
   }
   const budgetId=path.match(/^\/budgets\/([^/]+)$/)
   if (budgetId && method==='DELETE') {
-    const user=await authRequest('user',undefined,true)
-    await rest('monthly_budgets','DELETE',query({id:`eq.${decodeURIComponent(budgetId[1])}`,user_id:`eq.${user.id}`}))
+    const userId=await currentUserId()
+    await rest('monthly_budgets','DELETE',query({id:`eq.${decodeURIComponent(budgetId[1])}`,user_id:`eq.${userId}`}))
     return {ok:true} as T
   }
   if (path==='/profile' && method==='PATCH') {
-    await rest('profiles','PATCH',query({id:`eq.${(await authRequest('user',undefined,true)).id}`}),{name:body.name},{prefer:'return=minimal'})
+    await rest('profiles','PATCH',query({id:`eq.${await currentUserId()}`}),{name:body.name},{prefer:'return=minimal'})
     return {ok:true} as T
   }
   if (path==='/preferences' && method==='PATCH') {
-    const user=await authRequest('user',undefined,true)
-    await rest('user_preferences','POST','',{user_id:user.id,theme:body.theme},{prefer:'resolution=merge-duplicates,return=minimal'})
+    const userId=await currentUserId()
+    await rest('user_preferences','POST','',{user_id:userId,theme:body.theme},{prefer:'resolution=merge-duplicates,return=minimal'})
     return {ok:true,theme:body.theme} as T
   }
   if (path==='/routines' && method==='POST') return await rest('rpc/complete_financial_routine','POST','',{p_kind:body.kind}) as T
@@ -333,28 +368,28 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   if (path === '/card-payments' && method === 'POST') return await rest('rpc/pay_card_bill','POST','',{p_card_id:body.cardId,p_month:`${body.month}-01`,p_account_id:body.accountId,p_amount_cents:body.amountCents,p_date:body.date,p_note:body.note,p_key:idempotencyKey(options)}) as T
   const categoryId=path.match(/^\/categories\/([^/]+)$/)
   if (path==='/categories' && method==='POST') {
-    const user=await authRequest('user',undefined,true), result=await rest<any[]>('categories','POST','',{user_id:user.id,name:String(body.name).trim(),type:body.type})
+    const userId=await currentUserId(), result=await rest<any[]>('categories','POST','',{user_id:userId,name:String(body.name).trim(),type:body.type})
     return {id:result[0]?.id} as T
   }
   if (categoryId && method==='PATCH') {
-    const user=await authRequest('user',undefined,true), archivedAt=body.archived ? new Date().toISOString() : null
-    await rest('categories','PATCH',query({id:`eq.${decodeURIComponent(categoryId[1])}`,user_id:`eq.${user.id}`}),{name:String(body.name).trim(),archived_at:archivedAt},{prefer:'return=minimal'})
+    const userId=await currentUserId(), archivedAt=body.archived ? new Date().toISOString() : null
+    await rest('categories','PATCH',query({id:`eq.${decodeURIComponent(categoryId[1])}`,user_id:`eq.${userId}`}),{name:String(body.name).trim(),archived_at:archivedAt},{prefer:'return=minimal'})
     return {ok:true} as T
   }
   if (categoryId && method==='DELETE') return await rest('rpc/archive_category','POST','',{p_category_id:decodeURIComponent(categoryId[1])}) as T
   const subcategoryId=path.match(/^\/subcategories\/([^/]+)$/)
   if (path==='/subcategories' && method==='POST') {
-    const user=await authRequest('user',undefined,true), result=await rest<any[]>('subcategories','POST','',{user_id:user.id,category_id:body.categoryId,name:String(body.name).trim()})
+    const userId=await currentUserId(), result=await rest<any[]>('subcategories','POST','',{user_id:userId,category_id:body.categoryId,name:String(body.name).trim()})
     return {id:result[0]?.id} as T
   }
   if (subcategoryId && method==='PATCH') {
-    const user=await authRequest('user',undefined,true), archivedAt=body.archived ? new Date().toISOString() : null
-    await rest('subcategories','PATCH',query({id:`eq.${decodeURIComponent(subcategoryId[1])}`,user_id:`eq.${user.id}`}),{name:String(body.name).trim(),archived_at:archivedAt},{prefer:'return=minimal'})
+    const userId=await currentUserId(), archivedAt=body.archived ? new Date().toISOString() : null
+    await rest('subcategories','PATCH',query({id:`eq.${decodeURIComponent(subcategoryId[1])}`,user_id:`eq.${userId}`}),{name:String(body.name).trim(),archived_at:archivedAt},{prefer:'return=minimal'})
     return {ok:true} as T
   }
   if (subcategoryId && method==='DELETE') {
-    const user=await authRequest('user',undefined,true)
-    await rest('subcategories','PATCH',query({id:`eq.${decodeURIComponent(subcategoryId[1])}`,user_id:`eq.${user.id}`,archived_at:'is.null'}),{archived_at:new Date().toISOString()},{prefer:'return=minimal'})
+    const userId=await currentUserId()
+    await rest('subcategories','PATCH',query({id:`eq.${decodeURIComponent(subcategoryId[1])}`,user_id:`eq.${userId}`,archived_at:'is.null'}),{archived_at:new Date().toISOString()},{prefer:'return=minimal'})
     return {ok:true} as T
   }
   const goalDifficulty=path.match(/^\/goals\/([^/]+)\/difficulty$/)
@@ -371,19 +406,19 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   }
   if (path==='/entries' && method==='GET') return [] as T
   if (entryId && method==='PATCH') {
-    const user=await authRequest('user',undefined,true)
-    await rest('entries','PATCH',query({id:`eq.${decodeURIComponent(entryId[1])}`,user_id:`eq.${user.id}`,archived_at:'is.null'}),{account_id:body.accountId,title:body.title,category:body.category,subcategory:body.subcategory ?? '',type:body.type,amount_cents:body.amountCents,date:body.date,note:body.note},{prefer:'return=minimal'})
+    const userId=await currentUserId()
+    await rest('entries','PATCH',query({id:`eq.${decodeURIComponent(entryId[1])}`,user_id:`eq.${userId}`,archived_at:'is.null'}),{account_id:body.accountId,title:body.title,category:body.category,subcategory:body.subcategory ?? '',type:body.type,amount_cents:body.amountCents,date:body.date,note:body.note},{prefer:'return=minimal'})
     return {ok:true} as T
   }
   if (entryId && method==='DELETE') return await rest('rpc/archive_entry','POST','',{p_entry_id:decodeURIComponent(entryId[1])}) as T
   const accountId=path.match(/^\/accounts\/([^/]+)$/)
   if (path==='/accounts' && method==='POST') {
-    const user=await authRequest('user',undefined,true), result=await rest<any[]>('accounts','POST','',{user_id:user.id,name:body.name,type:body.type,opening_cents:body.openingCents,is_reserve:body.isReserve,description:body.description})
+    const userId=await currentUserId(), result=await rest<any[]>('accounts','POST','',{user_id:userId,name:body.name,type:body.type,opening_cents:body.openingCents,is_reserve:body.isReserve,description:body.description})
     return {id:result[0]?.id} as T
   }
   if (accountId && method==='PATCH') {
-    const user=await authRequest('user',undefined,true)
-    await rest('accounts','PATCH',query({id:`eq.${decodeURIComponent(accountId[1])}`,user_id:`eq.${user.id}`}),{name:body.name,type:body.type,is_reserve:body.isReserve,description:body.description},{prefer:'return=minimal'})
+    const userId=await currentUserId()
+    await rest('accounts','PATCH',query({id:`eq.${decodeURIComponent(accountId[1])}`,user_id:`eq.${userId}`}),{name:body.name,type:body.type,is_reserve:body.isReserve,description:body.description},{prefer:'return=minimal'})
     return {ok:true} as T
   }
   if (accountId && method==='DELETE') {
@@ -394,7 +429,7 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   }
   const assetId=path.match(/^\/assets\/([^/]+)$/)
   if (path==='/assets' && method==='POST') {
-    const user=await authRequest('user',undefined,true), result=await rest<any[]>('assets','POST','',{user_id:user.id,name:body.name,kind:body.kind,amount_cents:body.amountCents,note:body.note,installment_count:body.installmentCount ?? null,first_due_date:body.firstDueDate ?? null})
+    const userId=await currentUserId(), result=await rest<any[]>('assets','POST','',{user_id:userId,name:body.name,kind:body.kind,amount_cents:body.amountCents,note:body.note,installment_count:body.installmentCount ?? null,first_due_date:body.firstDueDate ?? null})
     return {id:result[0]?.id} as T
   }
   if (assetId && method==='PATCH') {
@@ -406,7 +441,7 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   if (contribution && method==='POST') return await rest('rpc/create_confirmed_contribution','POST','',{p_goal_id:decodeURIComponent(contribution[1]),p_amount_cents:body.amountCents,p_date:body.date,p_note:body.note,p_idempotency_key:idempotencyKey(options),p_confirmed:body.economyConfirmed===true}) as T
   const goalId=path.match(/^\/goals\/([^/]+)$/)
   if (path==='/goals' && method==='POST') {
-    const user=await authRequest('user',undefined,true), result=await rest<any[]>('goals','POST','',{user_id:user.id,title:body.title,kind:body.kind,target_cents:body.targetCents,icon:body.icon,deadline:body.deadline})
+    const userId=await currentUserId(), result=await rest<any[]>('goals','POST','',{user_id:userId,title:body.title,kind:body.kind,target_cents:body.targetCents,icon:body.icon,deadline:body.deadline})
     return {id:result[0]?.id} as T
   }
   if (goalId && method==='PATCH') {
