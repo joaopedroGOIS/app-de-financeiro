@@ -10,7 +10,8 @@ import type { Entry, Goal } from '../data'
 import { Badge, Button, Card, CardHeader, DonutChart, EmptyState, GoalCard, ProgressBar } from '../ui'
 
 import type { PageProps } from './shared'
-import { levelProgress, RewardHistory } from '../gamification'
+import { RewardHistory } from '../gamification'
+import { BossBill, HeroHud, RpgAttributes } from '../components/RpgHud'
 
 /* ==========================================================================
    Dashboard — visão consolidada da situação financeira + camada de jogo.
@@ -27,7 +28,7 @@ export function CategoryGlyph({ name, type, size = 18 }: { name: string; type?: 
   return <Icon size={size} strokeWidth={2} />
 }
 
-export function DashboardPage({ state, month, go, open, editEntry, editGoal, contributeTo, requestRemove, onUpdated,onMonth }: PageProps & { month: string; onUpdated?:()=>Promise<unknown>;onMonth?:(month:string)=>void }) {
+export function DashboardPage({ state, month, go, open, editEntry, editGoal, contributeTo, requestRemove, onUpdated,onMonth,onProfile }: PageProps & { month: string; onUpdated?:()=>Promise<unknown>;onMonth?:(month:string)=>void;onProfile?:()=>void }) {
   const [budgetRevision,setBudgetRevision]=useState(0)
   const [planningOpen,setPlanningOpen]=useState(false)
   const featuredMission=state.missions?.current.find(m=>m.status==='in_progress') ?? state.missions?.current.find(m=>m.status==='available')
@@ -70,7 +71,6 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
   const incomeTrend = compare(income, previousIncome)
   const expenseTrend = compare(expenses, previousExpenses, true)
   const monthlyResult = income - expenses
-  const xpBar = levelProgress(state.progress), xpProgress = xpBar.percent
   const openEntry = () => { if (!state.accounts.length) return go('accounts'); editEntry(null); open('entry') }
   const newEntryButton = <Button onClick={openEntry}><Plus size={18} />Nova movimentação</Button>
   const monthlySummary = (
@@ -87,23 +87,11 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
 
   return (
     <>
-      <div className="identity-welcome"><span className="eyebrow">Olá, {firstName}</span><h1>Cuide do agora.<br/><em>Conquiste o depois.</em></h1></div>
-      <div className="identity-overview">
-        <Card className="identity-worth">
-          <span className="eyebrow">Patrimônio líquido registrado</span>
-          <strong className="identity-money">{currency(state.stats.netWorthCents)}</strong>
-          <small>Contas + bens − dívidas, incluindo cartões</small>
-          <div className="identity-worth-details"><span><Wallet size={16}/>Contas<strong>{currency(balance)}</strong></span><span><ShieldCheck size={16}/>Reserva<strong>{currency(state.stats.reserveCents)}</strong></span></div>
-          <button className="text-action" type="button" onClick={()=>go('wealth')}>Ver patrimônio <ArrowUpRight size={15}/></button>
-          <small className="identity-class">Classe financeira: {state.stats.financialClass ?? 'Aguardando sincronização'}</small>
-        </Card>
-        <Card className="identity-player">
-          <div className="identity-player-heading"><span className="identity-crystal" aria-label={`Nível ${state.progress.level}`}>{state.progress.level}</span><div><span className="eyebrow">Sua evolução</span><h2>Nível {state.progress.level}</h2><small>{state.stats.streak} dias de sequência</small></div></div>
-          <div className="identity-xp"><span>{state.progress.xp_total} XP</span><small>{xpBar.label}</small></div>
-          <ProgressBar value={xpProgress} label="Progresso de XP para o próximo nível"/>
-          <div className="identity-player-footer"><span><Coins size={16}/>{state.progress.graninha_balance} Graninhas</span><button className="text-action" type="button" onClick={()=>go('journey')}>Jornada ↗</button></div>
-          {!state.progress.curveVersion&&<small className="identity-config-note">A curva oficial de XP ainda não está configurada.</small>}
-        </Card>
+      <HeroHud state={state} onProfile={onProfile ?? (() => open('profile'))} />
+      <div className="identity-welcome"><span className="eyebrow">Olá, {firstName}</span><h1>{monthName(month).replace(/^./, letter => letter.toUpperCase())}</h1><p className="rpg-subtitle">Seu mês como uma campanha: proteja a vida, fortaleça o escudo e cumpra missões.</p></div>
+      <div className="identity-overview rpg-overview">
+        <RpgAttributes state={state} month={month} />
+        <BossBill state={state} onAttack={() => go('cards')} />
       </div>
       <nav className="identity-actions" aria-label="Atalhos financeiros">
         <button type="button" onClick={openEntry}><span><Plus size={23}/></span>Registrar</button>
@@ -173,7 +161,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
         )}
 
         <Card className="span-7">
-          <CardHeader title="Movimentações recentes" description="Os últimos passos da sua organização" action={<Button variant="ghost" size="sm" onClick={() => go('entries')}>Ver todas <ArrowUpRight size={15} /></Button>} />
+          <CardHeader title="Diário de batalha" description="Os últimos passos da sua organização" action={<Button variant="ghost" size="sm" onClick={() => go('entries')}>Ver todas <ArrowUpRight size={15} /></Button>} />
           {recentEntries.length ? (
             <div className="entry-list">
               {recentEntries.slice(0, 5).map(entry => (

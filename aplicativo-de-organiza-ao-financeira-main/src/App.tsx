@@ -18,6 +18,7 @@ import { RecurringExpenses } from './RecurringExpenses'
 import { confirmedRewardEffect, enqueueRewardEffect, RewardCelebration } from './ActionEffects'
 import type { RewardEffect } from './ActionEffects'
 import { EffectsPreview } from './EffectsPreview'
+import { HeroHud } from './components/RpgHud'
 import {PasswordAccess} from './PasswordAccess'
 import {initializeRecovery,leaveRecovery} from './data'
 import type { EntryFilter } from './pages/Entries'
@@ -383,7 +384,7 @@ export default function App() {
     toast: showToast,
   }
   return (
-    <div className="app-shell identity-app">
+    <div className="app-shell identity-app rpg-app">
       <aside className="sidebar">
         <button type="button" className="sidebar-brand-button" onClick={() => go('dashboard')}><Brand /></button>
         <p className="sidebar-tagline">Sua grana. Seu jogo.<br />Sua evolução.</p>
@@ -392,7 +393,7 @@ export default function App() {
           {nav.map(item => (
             <button key={item.id} type="button" className={`nav-link ${page === item.id ? 'selected' : ''}`} aria-label={item.label} title={item.label} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
               <item.icon size={18} strokeWidth={page === item.id ? 2.3 : 1.9} />
-              {item.short}
+              <span className="nav-link-label">{item.short}</span>
               {item.id === 'goals' && state.goals.length > 0 && <span className="nav-badge">{state.goals.length}</span>}
             </button>
           ))}
@@ -477,6 +478,7 @@ export default function App() {
         </header>
 
         <div className="page-content" key={page}>
+          {page !== 'dashboard' && <HeroHud state={state} onProfile={() => { setProfileName(state.user.name); open('profile') }} />}
           {page === 'dashboard' && <>
             <PageHeading
               className="dashboard-page-heading"
@@ -485,7 +487,7 @@ export default function App() {
               description=""
               action={<div className="dashboard-page-actions">{monthPicker}<Button onClick={createDashboardEntry}><Plus size={17} />Nova movimentação</Button></div>}
             />
-            <DashboardPage {...pageProps} month={month} onUpdated={refresh} onMonth={setMonth}/>
+            <DashboardPage {...pageProps} month={month} onUpdated={refresh} onMonth={setMonth} onProfile={() => { setProfileName(state.user.name); open('profile') }}/>
           </>}
 
           {page === 'entries' && <>
