@@ -11,6 +11,7 @@ import './styles/recurring.css'
 import './styles/access.css'
 import './styles/identity.css'
 import './styles/effects.css'
+import './styles/rpg.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>{new URLSearchParams(location.search).get('previa')==='efeitos'?<EffectsPreviewPage/>:<App/>}</React.StrictMode>
