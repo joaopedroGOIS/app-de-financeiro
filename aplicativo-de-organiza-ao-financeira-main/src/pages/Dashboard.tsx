@@ -12,6 +12,7 @@ import { Badge, Button, Card, CardHeader, DonutChart, EmptyState, GoalCard, Prog
 import type { PageProps } from './shared'
 import { RewardHistory } from '../gamification'
 import { BossBill, HeroHud, RpgAttributes } from '../components/RpgHud'
+import { PixelIcon } from '../components/PixelIcon'
 
 /* ==========================================================================
    Dashboard — visão consolidada da situação financeira + camada de jogo.
@@ -94,20 +95,20 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
         <BossBill state={state} onAttack={() => go('cards')} />
       </div>
       <nav className="identity-actions" aria-label="Atalhos financeiros">
-        <button type="button" onClick={openEntry}><span><Plus size={23}/></span>Registrar</button>
-        <button type="button" onClick={()=>go('accounts')}><span><Wallet size={23}/></span>Contas</button>
-        <button type="button" onClick={()=>go('goals')}><span><Target size={23}/></span>Objetivos</button>
-        <button type="button" onClick={()=>{setPlanningOpen(true);requestAnimationFrame(()=>document.getElementById('identity-planning')?.scrollIntoView({behavior:'smooth',block:'start'}))}}><span><CalendarClock size={23}/></span>Planejar</button>
+        <button type="button" onClick={openEntry}><span><PixelIcon name="scroll" size={30}/></span>Registrar</button>
+        <button type="button" onClick={()=>go('accounts')}><span><PixelIcon name="chest" size={30}/></span>Contas</button>
+        <button type="button" onClick={()=>go('goals')}><span><PixelIcon name="star" size={30}/></span>Objetivos</button>
+        <button type="button" onClick={()=>{setPlanningOpen(true);requestAnimationFrame(()=>document.getElementById('identity-planning')?.scrollIntoView({behavior:'smooth',block:'start'}))}}><span><PixelIcon name="coin" size={30}/></span>Planejar</button>
       </nav>
       {monthlySummary}
       <div className="identity-focus">
-        <div className="identity-focus-icon"><Award size={28}/></div>
+        <div className="identity-focus-icon"><PixelIcon name="scroll" size={36}/></div>
         <div><span className="eyebrow">Seu próximo passo</span><h3>{featuredMission?.name ?? 'Sua jornada financeira'}</h3>
         {featuredMission ? <><ProgressBar value={Math.min(100,((Math.min(featuredMission.days,featuredMission.requiredDays)+Math.min(featuredMission.reviews,featuredMission.requiredReviews))/(featuredMission.requiredDays+featuredMission.requiredReviews||1))*100)} label={`Progresso de ${featuredMission.name}`}/><small>{featuredMission.days}/{featuredMission.requiredDays} dias{featuredMission.requiredReviews>0?` · ${featuredMission.reviews}/${featuredMission.requiredReviews} revisões`:''} · +{featuredMission.xp} XP · {featuredMission.graninha} Graninhas</small></> : <small>{state.missions?'Acompanhe suas conquistas e rotinas.':'Missões indisponíveis no momento.'}</small>}</div>
         <Button variant="ghost" aria-label="Ver jornada" onClick={()=>go('journey')}><ArrowUpRight size={19}/><span>Ver jornada</span></Button>
       </div>
       <details className="identity-planning" id="identity-planning" open={planningOpen} onToggle={event=>setPlanningOpen(event.currentTarget.open)}>
-        <summary><CalendarClock size={19}/>Planejamento do mês<span>Orçamentos e compromissos</span></summary>
+        <summary><PixelIcon name="scroll" size={30}/>Planejamento do mês<span>Orçamentos e compromissos</span></summary>
 
 
       {onMonth&&<FirstSteps key={state.user.id} state={state} budgetRevision={budgetRevision} onAccount={()=>go('accounts')} onEntry={()=>go('entries')} onBudget={()=>{setPlanningOpen(true);onMonth(dateToday().slice(0,7));requestAnimationFrame(()=>{const target=document.getElementById('monthly-budget-guide');target?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});target?.focus({preventScroll:true})})}}/>}
@@ -115,7 +116,7 @@ export function DashboardPage({ state, month, go, open, editEntry, editGoal, con
       {onUpdated&&<RecurringExpenses key={`recurring:${month}`} state={state} month={month} onUpdated={onUpdated} compact onManage={()=>go('entries')}/>}
 
       </details>
-      <details className="identity-planning"><summary><Award size={19}/>Últimas recompensas</summary><RewardHistory game={state.gamification} limit={3}/></details>
+      <details className="identity-planning"><summary><PixelIcon name="crown" size={30}/>Últimas recompensas</summary><RewardHistory game={state.gamification} limit={3}/></details>
       <div className="dashboard-grid">
         <FinancialReports key={month} entries={state.entries} month={month} />
 

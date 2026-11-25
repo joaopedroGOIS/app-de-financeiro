@@ -1,4 +1,5 @@
-import { Coins, Flame, Heart, ShieldCheck, Skull, Swords } from 'lucide-react'
+import { Swords } from 'lucide-react'
+import { PixelIcon } from './PixelIcon'
 import { cardBills, relevantCardBill } from '../creditCards'
 import { currency, dateToday, displayDate, monthName } from '../data'
 import type { State } from '../data'
@@ -24,15 +25,15 @@ export function HeroHud({ state, onProfile }: { state: State; onProfile: () => v
         </span>
       </button>
       <div className="rpg-hud-xp">
-        <div className="rpg-bar-label"><span>Experiência</span><small>{bar.required ? `${bar.earned}/${bar.required} XP · total ${xp}` : `${xp} XP · ${bar.label}`}</small></div>
+        <div className="rpg-bar-label"><span><PixelIcon name="star" size={24} />Experiência</span><small>{bar.required ? `${bar.earned}/${bar.required} XP · total ${xp}` : `${xp} XP · ${bar.label}`}</small></div>
         <div className="rpg-track" role="progressbar" aria-label="Progresso de XP para o próximo nível" aria-valuenow={Math.round(bar.percent)} aria-valuemin={0} aria-valuemax={100}>
           <div className="rpg-fill xp" style={{ width: `${bar.percent}%` }} />
         </div>
         {!state.progress.curveVersion && <small className="rpg-note">A curva oficial de XP ainda não está configurada.</small>}
       </div>
       <div className="rpg-hud-chips">
-        <span className={`rpg-chip fire ${streak ? '' : 'off'}`} title={`${streak} dias de sequência`} role="img" aria-label={`${streak} dias de sequência`}><Flame size={18} aria-hidden="true" /><span aria-hidden="true">{streak}</span></span>
-        <span className="rpg-chip gold" title={`${coins} Graninhas`} role="img" aria-label={`${coins} Graninhas`}><Coins size={18} aria-hidden="true" /><span aria-hidden="true">{coins}</span></span>
+        <span className={`rpg-chip fire ${streak ? '' : 'off'}`} title={`${streak} dias de sequência`} role="img" aria-label={`${streak} dias de sequência`}><PixelIcon name="flame" size={24} /><span aria-hidden="true">{streak}</span></span>
+        <span className="rpg-chip gold" title={`${coins} Graninhas`} role="img" aria-label={`${coins} Graninhas`}><PixelIcon name="coin" size={24} /><span aria-hidden="true">{coins}</span></span>
       </div>
     </section>
   )
@@ -48,16 +49,16 @@ export function RpgAttributes({ state, month }: { state: State; month: string })
   const balance = state.accounts.reduce((sum, account) => sum + account.balanceCents, 0)
   return (
     <section className="card rpg-attributes" aria-label={`Atributos de ${monthName(month)}`}>
-      <h2 className="rpg-window-title"><Heart size={20} aria-hidden="true" />Atributos</h2>
+      <h2 className="rpg-window-title"><PixelIcon name="heart" size={36} />Atributos</h2>
       <div className="rpg-bar">
-        <div className="rpg-bar-label"><span><Heart size={15} aria-hidden="true" />Vida do mês</span><small>{currency(hp)} de {currency(income)}</small></div>
+        <div className="rpg-bar-label"><span><PixelIcon name="heart" size={24} />Vida do mês</span><small>{currency(hp)} de {currency(income)}</small></div>
         <div className={`rpg-track ${income && hpPercent < 25 ? 'low' : ''}`} role="progressbar" aria-label="Vida do mês" aria-valuenow={Math.round(hpPercent)} aria-valuemin={0} aria-valuemax={100}>
           <div className="rpg-fill hp" style={{ width: `${hpPercent}%` }} />
         </div>
         <small className="rpg-note">Receitas menos despesas do mês. Gastos são dano; receitas são cura.</small>
       </div>
       <div className="rpg-shield">
-        <span className="rpg-shield-icon"><ShieldCheck size={22} aria-hidden="true" /></span>
+        <span className="rpg-shield-icon"><PixelIcon name="shield" size={36} /></span>
         <div><span className="rpg-bar-label"><span>Escudo (reserva)</span></span><strong>{currency(state.stats.reserveCents)}</strong><small className="rpg-note">Classe atual: <b>{state.stats.financialClass ?? 'aguardando sincronização'}</b>. A classe vem da reserva, não do XP.</small></div>
       </div>
       <div className="rpg-stats">
@@ -80,11 +81,11 @@ export function BossBill({ state, onAttack }: { state: State; onAttack: () => vo
   const life = bill.totalCents ? bill.remainingCents / bill.totalCents * 100 : 0
   return (
     <section className={`card rpg-boss ${slain ? 'slain' : ''}`} aria-label="Chefe da fatura">
-      <h2 className="rpg-window-title"><Skull size={20} aria-hidden="true" />Chefe da fatura
+      <h2 className="rpg-window-title"><PixelIcon name="skull" size={36} />Chefe da fatura
         <span className="rpg-aside">{slain ? <span className="rpg-tag mint">Derrotado</span> : overdue ? <span className="rpg-tag hp">Vencida</span> : `vence em ${displayDate(bill.dueDate)}`}</span>
       </h2>
       <div className="rpg-boss-body">
-        <div className="rpg-boss-art" aria-hidden="true"><Skull size={54} strokeWidth={1.6} /></div>
+        <div className="rpg-boss-art" aria-hidden="true"><PixelIcon name="skull" size={72} /></div>
         <div className="rpg-boss-info">
           <strong className="rpg-boss-name">{card.name} · fatura de {monthName(bill.month)}</strong>
           <small className="rpg-note">{bill.installments.length} parcelas nesta fatura. Pagamentos parciais são golpes; quitar derrota o chefe. Pagar fatura não gera XP.</small>

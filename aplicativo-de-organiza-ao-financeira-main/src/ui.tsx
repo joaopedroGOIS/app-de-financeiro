@@ -1,3 +1,5 @@
+import { PixelIcon } from './components/PixelIcon'
+import type { PixelSprite } from './components/PixelIcon'
 import { useEffect, useRef, useState } from 'react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { Check, ChevronLeft, ChevronRight, CircleAlert, Monitor, Moon, Sun, Target, TrendingUp, X } from 'lucide-react'
@@ -91,14 +93,17 @@ export function Card({ className = '', children }: { className?: string; childre
   return <section className={`card ${className}`}>{children}</section>
 }
 
+const cardSprites: Record<string, PixelSprite> = { Award: 'crown', Medal: 'crown', CalendarCheck: 'scroll', CalendarClock: 'scroll', Compass: 'star', Flag: 'star', Flame: 'flame', Gem: 'shield', Target: 'star', Wallet: 'chest', CreditCard: 'card', ShieldCheck: 'shield', Coins: 'coin' }
+
 export function CardHeader({ title, description, icon: Icon, action }: { title: string; description?: string; icon?: LucideIcon; action?: ReactNode }) {
+  const sprite = Icon ? cardSprites[(Icon as { displayName?: string }).displayName ?? ''] : undefined
   return (
     <div className="card-header">
       <div className="card-header-text">
         <h3 className="card-title">{title}</h3>
         {description && <p className="card-description">{description}</p>}
       </div>
-      {Icon && !action && <span className="card-icon"><Icon size={19} /></span>}
+      {Icon && !action && <span className="card-icon">{sprite ? <PixelIcon name={sprite} size={24} /> : <Icon size={19} />}</span>}
       {action}
     </div>
   )
