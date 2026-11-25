@@ -418,11 +418,8 @@ export default function App() {
           <button type="button" className="mobile-brand-button" onClick={() => go('dashboard')} aria-label="Ir para o início"><Brand /></button>
           {page === 'dashboard' ? (
             <div className="desktop-dashboard-greeting">
-              <span className="desktop-dashboard-avatar" aria-hidden="true">{firstName.slice(0, 1).toUpperCase()}</span>
-              <span className="desktop-dashboard-greeting-copy">
-                <strong>Olá, {firstName}</strong>
-                <small>Sua disciplina de hoje constrói seu futuro.</small>
-              </span>
+              {/* A saudação fica só no topo do Início (identity-welcome), sem repetir aqui. */}
+              <strong className="breadcrumb-current" aria-current="page">Meu espaço</strong>
               {returnTo && (
                 <button type="button" className="breadcrumb-return" onClick={goBack}>
                   <ArrowLeft size={15} />Voltar para {nav.find(item => item.id === returnTo)?.label}
