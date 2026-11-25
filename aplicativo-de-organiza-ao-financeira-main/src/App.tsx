@@ -19,6 +19,8 @@ import { confirmedRewardEffect, enqueueRewardEffect, RewardCelebration } from '.
 import type { RewardEffect } from './ActionEffects'
 import { EffectsPreview } from './EffectsPreview'
 import { HeroHud } from './components/RpgHud'
+import { PixelIcon } from './components/PixelIcon'
+import type { PixelSprite } from './components/PixelIcon'
 import {PasswordAccess} from './PasswordAccess'
 import {initializeRecovery,leaveRecovery} from './data'
 import type { EntryFilter } from './pages/Entries'
@@ -29,14 +31,14 @@ import type { ModalKind, PageId } from './pages/shared'
 import { Brand, Button, ConfirmDialog, InlineError, LoadingScreen, Modal, MonthPicker, PageHeading, ThemeMenu, ThemeSelector, Toast } from './ui'
 
 const pagePaths: Record<PageId, string> = { dashboard: 'visao-geral', entries: 'movimentacoes', accounts: 'contas', cards: 'cartoes', wealth: 'patrimonio', goals: 'objetivos', journey: 'jornada' }
-const nav: { id: PageId; label: string; short: string; icon: LucideIcon }[] = [
-  { id: 'dashboard', label: 'Visão geral', short: 'Início', icon: BarChart3 },
-  { id: 'accounts', label: 'Minhas contas', short: 'Contas', icon: Wallet },
-  { id: 'cards', label: 'Cartões de crédito', short: 'Cartões', icon: CreditCard },
-  { id: 'entries', label: 'Movimentações', short: 'Movimentos', icon: ArrowDownLeft },
-  { id: 'goals', label: 'Metas & Sonhos', short: 'Metas', icon: Target },
-  { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem },
-  { id: 'journey', label: 'Evolução', short: 'Jornada', icon: Award },
+const nav: { id: PageId; label: string; short: string; icon: LucideIcon; sprite: PixelSprite }[] = [
+  { id: 'dashboard', label: 'Visão geral', short: 'Início', icon: BarChart3, sprite: 'heart' },
+  { id: 'accounts', label: 'Minhas contas', short: 'Contas', icon: Wallet, sprite: 'chest' },
+  { id: 'cards', label: 'Cartões de crédito', short: 'Cartões', icon: CreditCard, sprite: 'card' },
+  { id: 'entries', label: 'Movimentações', short: 'Movimentos', icon: ArrowDownLeft, sprite: 'scroll' },
+  { id: 'goals', label: 'Metas & Sonhos', short: 'Metas', icon: Target, sprite: 'star' },
+  { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem, sprite: 'shield' },
+  { id: 'journey', label: 'Evolução', short: 'Jornada', icon: Award, sprite: 'crown' },
 ]
 
 function pageFromHash(): PageId {
@@ -392,7 +394,7 @@ export default function App() {
         <nav className="sidebar-nav" aria-label="Navegação principal">
           {nav.map(item => (
             <button key={item.id} type="button" className={`nav-link ${page === item.id ? 'selected' : ''}`} aria-label={item.label} title={item.label} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
-              <item.icon size={18} strokeWidth={page === item.id ? 2.3 : 1.9} />
+              <PixelIcon name={item.sprite} size={24} />
               <span className="nav-link-label">{item.short}</span>
               {item.id === 'goals' && state.goals.length > 0 && <span className="nav-badge">{state.goals.length}</span>}
             </button>
@@ -531,7 +533,7 @@ export default function App() {
       <nav className="bottom-nav" aria-label="Navegação principal">
         {nav.map(item => (
           <button key={item.id} type="button" className={`bottom-nav-item ${page === item.id ? 'selected' : ''}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
-            <item.icon size={20} strokeWidth={page === item.id ? 2.3 : 1.9} />
+            <PixelIcon name={item.sprite} size={24} />
             <span>{item.short}</span>
           </button>
         ))}

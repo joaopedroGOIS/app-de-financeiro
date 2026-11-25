@@ -269,7 +269,9 @@ body {
 .rpg-hud-id small { font-size: 13px; color: var(--text-secondary); }
 .rpg-hud-id b { color: var(--rpg-gold-text); }
 .rpg-hud-xp { display: grid; gap: 6px; min-width: 0; }
-.rpg-hud-xp .rpg-bar-label > span::before { content: '★'; color: var(--rpg-gold); margin-right: 2px; }
+.pixel-icon { display: block; flex-shrink: 0; image-rendering: pixelated; }
+.rpg-app .nav-link .pixel-icon, .rpg-app .bottom-nav-item .pixel-icon { filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .35)); }
+.rpg-app .nav-link:not(.selected) .pixel-icon { opacity: .9; }
 .rpg-hud-chips { display: flex; gap: 16px; align-items: center; }
 .rpg-chip { display: inline-flex; align-items: center; gap: 6px; font: 600 19px var(--font-display); font-variant-numeric: tabular-nums; }
 .rpg-chip.fire { color: #ff9a4a; }
@@ -328,7 +330,10 @@ body {
   font: 600 15px var(--font-display);
 }
 .rpg-app .identity-actions button:hover { border-color: var(--rpg-frame); }
-.rpg-app .identity-actions button > span { border: 2px solid var(--rpg-frame); border-radius: 8px; }
+.rpg-app .identity-actions button > span { width: 46px; height: 46px; border: 2px solid var(--rpg-frame); border-radius: 8px; background: linear-gradient(160deg, var(--primary-soft-strong), var(--rpg-track)); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .18), inset 0 -3px 0 rgba(0, 0, 0, .35); }
+.rpg-app .identity-actions button:first-child > span, .rpg-app .identity-actions button:last-child > span { background: linear-gradient(160deg, var(--primary-soft-strong), var(--rpg-track)); }
+.rpg-app .card-icon { width: 40px; height: 40px; }
+.rpg-app .identity-focus-icon { width: 58px; height: 58px; display: grid; place-items: center; background: linear-gradient(160deg, var(--primary-soft-strong), var(--rpg-track)); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .18), inset 0 -3px 0 rgba(0, 0, 0, .35); }
 .rpg-app .identity-focus { background: linear-gradient(180deg, var(--rpg-win-top), var(--rpg-win-bottom)); }
 .rpg-app .identity-focus-icon { border: 2px solid var(--rpg-frame); border-radius: 8px; color: var(--rpg-gold-text); background: var(--rpg-panel); }
 .rpg-app .identity-planning > summary { font: 600 18px var(--font-display); }
@@ -378,6 +383,8 @@ body {
   }
   .rpg-app .bottom-nav-item { border: 2px solid transparent; border-radius: 8px; }
   .rpg-app .bottom-nav-item span { font: 500 11px var(--font-display); }
+  .rpg-app .bottom-nav-item .pixel-icon { width: 22px; height: 22px; }
+  .rpg-app .bottom-nav-item { gap: 3px; padding-top: 6px; padding-bottom: 6px; }
   .rpg-app .bottom-nav-item.selected { border-color: var(--rpg-frame); background: var(--primary-strong); color: #fff; }
 }
 
