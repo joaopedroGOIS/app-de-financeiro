@@ -479,3 +479,14 @@ body {
   .rpg-wardrobe-slot { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { .rpg-stage-avatar, .rpg-stage-pet { animation: none; } }
+/* --- Lojinha, fase 2: compra e guarda-roupa ---------------------------------------- */
+.rpg-wardrobe-window { display: grid; gap: 12px; }
+.rpg-shop-grid.compact { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.rpg-shop-grid.compact .rpg-shop-preview { min-height: 88px; }
+.rpg-shop-action { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; }
+.rpg-app .rpg-buy { gap: 5px; }
+.rpg-app .rpg-buy:disabled { opacity: .55; cursor: not-allowed; }
+.rpg-confirm { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.rpg-confirm .rpg-shop-preview { min-width: 110px; padding: 8px; }
+.rpg-app .modal .rpg-stats { margin-bottom: 12px; }
+.rpg-app .modal .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }

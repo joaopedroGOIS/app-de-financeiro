@@ -1,0 +1,40 @@
+// Integração PostgreSQL descartável (PGlite): Lojinha, fase 2 (compras com Graninhas).
+import assert from 'node:assert/strict'
+import { readFile, readdir } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
+const {PGlite}=await import(process.argv[2]?pathToFileURL(resolve(process.argv[2])).href:'@electric-sql/pglite')
+const db=new PGlite()
+const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0] ?? {})[0]
+const admin=()=>db.exec('reset role')
+const login=async(id)=>{await admin();await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated')}
+let count=0;const check=async(name,fn)=>{await fn();count++;console.log('OK '+name)}
+await db.exec("create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,raw_user_meta_data jsonb default '{}'::jsonb); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to authenticated,anon;")
+const dir=new URL('../../supabase/migrations/',import.meta.url)
+for(const f of (await readdir(dir)).filter(f=>f.endsWith('.sql')).sort())await db.exec(await readFile(new URL(f,dir),'utf8'))
+const a=randomUUID(),b=randomUUID()
+await db.query('insert into auth.users(id) values($1),($2)',[a,b])
+const setBalance=async(id,v)=>{await admin();await db.query('update public.player_progress set graninha_balance=$2 where user_id=$1',[id,v])}
+const balanceOf=async(id)=>{await admin();return scalar('select graninha_balance from public.player_progress where user_id=$1',[id])}
+const buy=(item,key=randomUUID())=>scalar('select public.purchase_cosmetic($1,$2)',[item,key])
+const state=()=>scalar('select public.cosmetics_state()')
+const openShop=async()=>{await admin();await db.exec('update public.cosmetic_items set active=true where price > 0')}
+
+await check('catálogo aprovado entra completo e desligado',async()=>{await login(a);assert.equal(await scalar('select count(*)::int from public.cosmetic_items'),41);assert.equal(await scalar('select count(*)::int from public.cosmetic_items where active'),0);assert.equal(await scalar("select count(*)::int from public.cosmetic_items where rarity='mitico'"),5);assert.equal(await scalar('select coalesce(sum(price),0)::int from public.cosmetic_items'),8400);const s=await state();assert.equal(s.shopOpen,false)})
+await check('com a Lojinha desligada ninguém compra, mesmo com saldo',async()=>{await setBalance(a,1000);await login(a);await assert.rejects(buy('hat-cap'),/SHOP_CLOSED/);assert.equal(await balanceOf(a),1000)})
+await openShop()
+await check('compra com saldo desconta o preço exato e entrega o item',async()=>{await login(a);const r=await buy('hat-wizard');assert.deepEqual([r.status,r.price,r.balance],['purchased',200,800]);assert.equal(await balanceOf(a),800);await login(a);const s=await state();assert.equal(s.shopOpen,true);assert.deepEqual(s.owned,['hat-wizard']);assert.equal(Number(s.spent),200)})
+await check('a mesma chave enviada duas vezes cobra uma vez só',async()=>{await login(a);const key=randomUUID();const r1=await buy('acc-glasses',key);await login(a);const r2=await buy('acc-glasses',key);assert.equal(r1.status,'purchased');assert.equal(r2.status,'already');assert.equal(await balanceOf(a),760);await admin();assert.equal(await scalar('select count(*)::int from public.graninha_spend_ledger where user_id=$1',[a]),2)})
+await check('item já comprado não é cobrado de novo',async()=>{await login(a);await assert.rejects(buy('hat-wizard'),/ALREADY_OWNED/);assert.equal(await balanceOf(a),760)})
+await check('compra sem saldo é recusada e não muda nada',async()=>{await login(a);await assert.rejects(buy('pet-phoenix'),/INSUFFICIENT_GRANINHAS/);assert.equal(await balanceOf(a),760);await login(a);assert.ok(!(await state()).owned.includes('pet-phoenix'))})
+await check('compras seguidas nunca deixam o saldo negativo',async()=>{await setBalance(b,500);await login(b);await buy('outfit-knight');await login(b);await assert.rejects(buy('hat-helmet'),/INSUFFICIENT_GRANINHAS/);assert.equal(await balanceOf(b),50);await admin();await assert.rejects(db.query('update public.player_progress set graninha_balance=-1 where user_id=$1',[b]))})
+await check('grátis, Lendários e itens inexistentes não se compram',async()=>{await login(a);await assert.rejects(buy('hair-short'),/NOT_FOR_SALE/);await login(a);await assert.rejects(buy('hat-crown'),/NOT_FOR_SALE/);await login(a);await assert.rejects(buy('hat-golden'),/ITEM_NOT_FOUND/);assert.equal(await balanceOf(a),760)})
+await check('chave de idempotência inválida é recusada',async()=>{await login(a);await assert.rejects(buy('hat-cap','curta'),/INVALID_KEY/)})
+await check('equipar aceita só itens grátis ou comprados, no espaço certo',async()=>{await login(a);await scalar("select public.equip_cosmetic('hat','hat-wizard')");await login(a);await scalar("select public.equip_cosmetic('hair','hair-short')");await login(a);await assert.rejects(scalar("select public.equip_cosmetic('outfit','outfit-stellar')"),/NOT_OWNED/);await login(a);await assert.rejects(scalar("select public.equip_cosmetic('outfit','hat-wizard')"),/WRONG_SLOT/);await login(a);assert.deepEqual((await state()).equipped,{hat:'hat-wizard',hair:'hair-short'})})
+await check('um jogador não vê nem mexe no inventário, gastos ou equipados de outro',async()=>{await login(b);assert.equal(await scalar('select count(*)::int from public.inventory_items where user_id=$1',[a]),0);assert.equal(await scalar('select count(*)::int from public.graninha_spend_ledger where user_id=$1',[a]),0);assert.equal(await scalar('select count(*)::int from public.equipped_cosmetics where user_id=$1',[a]),0)})
+await check('escrita direta nas tabelas é bloqueada; só as funções escrevem',async()=>{await login(a);await assert.rejects(db.query("insert into public.inventory_items(user_id,item_code,source) values(auth.uid(),'pet-phoenix','purchase')"));await login(a);await assert.rejects(db.query("update public.cosmetic_items set price=1"));await login(a);await assert.rejects(db.query("update public.player_progress set graninha_balance=99999"))})
+await check('histórico de gastos recusa alteração e exclusão',async()=>{await admin();await assert.rejects(db.query('update public.graninha_spend_ledger set amount=1'),/immutable/);await assert.rejects(db.query('delete from public.graninha_spend_ledger'),/immutable/)})
+await check('compras não mexem em XP nem em nível',async()=>{await admin();const before=(await db.query('select xp_total,level from public.player_progress where user_id=$1',[b])).rows[0];await setBalance(b,1000);await login(b);await buy('theme-aurora');await admin();const after=(await db.query('select xp_total,level from public.player_progress where user_id=$1',[b])).rows[0];assert.deepEqual(after,before)})
+await check('o script de desfazer remove só o que a Lojinha criou',async()=>{await admin();await db.exec(await readFile(new URL('../../supabase/rollbacks/20261128000000_cosmetics_shop.down.sql',import.meta.url),'utf8'));assert.equal(await scalar("select count(*)::int from information_schema.tables where table_schema='public' and table_name in ('cosmetic_items','inventory_items','equipped_cosmetics','graninha_spend_ledger')"),0);assert.equal(await scalar("select count(*)::int from information_schema.columns where table_schema='public' and table_name='user_preferences' and column_name='avatar_skin'"),1)})
+console.log(`${count} verificações da Lojinha aprovadas`)
