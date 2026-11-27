@@ -16,7 +16,7 @@ export type Gamification = { progress: Progress; streak: number; rewards: Reward
 export type FinancialClass = { name: string; reserveCents: number; version: string; history: {id:string;class_code:string;reserve_cents:number;created_at:string}[] }
 export type Mission = {code:string;name:string;difficulty:string;description:string;days:number;reviews:number;requiredDays:number;requiredReviews:number;start:string;end:string;xp:number;graninha:number;period:string;status:'available'|'in_progress'|'completed'|'expired';configVersion:string}
 export type Missions = {current:Mission[];previous:Mission[];timezone:string}
-export type State = { missions?: Missions; financialClass?: FinancialClass; gamification?: Gamification; creditCards?: CardState; creditCardsEnabled?: boolean; user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: string | null } }
+export type State = { missions?: Missions; financialClass?: FinancialClass; gamification?: Gamification; creditCards?: CardState; creditCardsEnabled?: boolean; user: { id: string; name: string; email: string }; accounts: Account[]; entries: Entry[]; archivedEntries: (Entry & { archivedAt: string })[]; categories?: UserCategory[]; subcategories?: UserSubcategory[]; assets: Asset[]; goals: Goal[]; progress: Progress; preferences: { theme: ThemeMode | null }; avatar?: { skin: number; hairColor: number; available: boolean }; stats: { reserveCents: number; netWorthCents: number; streak: number; financialClass: string | null } }
 export type Analysis = { status: 'insufficient' | 'expired' | 'ready'; difficulty?: string; confidence: 'baixa' | 'alta'; monthsRecorded: number; remainingCents?: number; capacityCents?: number; estimatedMonths?: number; needMonthlyCents?: number; monthsLeft?: number; effortIndex?: number; formulaVersion: string }
 
 /** `token` aponta para os pares `--cat-*` definidos em `styles/tokens.css`, um por tema. */
@@ -240,6 +240,11 @@ async function getGameState() {
 async function getState(): Promise<State> {
   // Os dados financeiros não dependem das recompensas: as duas leituras correm em paralelo.
   const game = getGameState()
+  // Leitura separada e opcional: se as colunas de aparência ainda não existirem (migration e deploy
+  // não têm ordem garantida), o app carrega normalmente com a aparência padrão.
+  const appearance = rest('user_preferences','GET',query({select:'avatar_skin,avatar_hair_color'}))
+    .then(rows => { const row = one<any>(rows); return { skin:Number(row?.avatar_skin ?? 1), hairColor:Number(row?.avatar_hair_color ?? 0), available:true } })
+    .catch(() => ({ skin:1, hairColor:0, available:false }))
   const [user, profiles, accounts, entries, archived, categories, subcategories, assets, goals, contributions, milestones, progress, preferences, creditCards] = await Promise.all([
     authRequest('user', undefined, true),
     rest('profiles','GET',query({select:'id,name'})),
@@ -257,6 +262,7 @@ async function getState(): Promise<State> {
     loadCreditCards(),
   ])
   const { financialClass, gamification, missions } = await game
+  const avatar = await appearance
   const profile = one<any>(profiles) ?? {}
   const accountRows = rows<any>(accounts), entryRows = rows<any>(entries), assetRows = rows<any>(assets)
   const stats = netStats(accountRows, entryRows, assetRows, creditCards.state)
@@ -279,6 +285,7 @@ async function getState(): Promise<State> {
     goals: rows<any>(goals).map(g => ({ id:g.id,title:g.title,kind:g.kind,targetCents:Number(g.target_cents),icon:g.icon,deadline:g.deadline,savedCents:contributionsByGoal.filter(c=>c.goal_id===g.id).reduce((sum,c)=>sum+Number(c.amount_cents),0),milestones:milestoneRows.filter(m=>m.goal_id===g.id).map(m=>Number(m.milestone)) })),
     progress: gamification?.progress ?? { xp_total:Number(progressRow.xp_total ?? 0),level:Number(progressRow.level ?? 1),graninha_balance:Number(progressRow.graninha_balance ?? 0),nextLevelXp:null },
     preferences: { theme:(one<any>(preferences)?.theme ?? null) as ThemeMode | null },
+    avatar,
     stats: { reserveCents:stats.reserveCents,netWorthCents:stats.netWorthCents,streak:gamification?.streak ?? 0,financialClass:financialClass?.name ?? null },
   }
 }
@@ -351,6 +358,12 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
     const userId=await currentUserId()
     await rest('user_preferences','POST','',{user_id:userId,theme:body.theme},{prefer:'resolution=merge-duplicates,return=minimal'})
     return {ok:true,theme:body.theme} as T
+  }
+  if (path==='/preferences/avatar' && method==='PATCH') {
+    const skin=Number(body.skin), hairColor=Number(body.hairColor)
+    if (!Number.isInteger(skin) || skin<0 || skin>3 || !Number.isInteger(hairColor) || hairColor<0 || hairColor>5) throw new ApiError('Escolha uma cor da paleta.', 400)
+    await rest('user_preferences','POST','',{user_id:await currentUserId(),avatar_skin:skin,avatar_hair_color:hairColor},{prefer:'resolution=merge-duplicates,return=minimal'})
+    return {ok:true} as T
   }
   if (path==='/routines' && method==='POST') return await rest('rpc/complete_financial_routine','POST','',{p_kind:body.kind}) as T
   const cardId = path.match(/^\/credit-cards\/([^/]+)$/)

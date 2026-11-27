@@ -19,6 +19,9 @@ import { confirmedRewardEffect, enqueueRewardEffect, RewardCelebration } from '.
 import type { RewardEffect } from './ActionEffects'
 import { EffectsPreview } from './EffectsPreview'
 import { HeroHud } from './components/RpgHud'
+import { AvatarFigure } from './avatar/Avatar'
+import { lookFor } from './avatar/look'
+import { ProfilePage } from './pages/Profile'
 import { PixelIcon } from './components/PixelIcon'
 import type { PixelSprite } from './components/PixelIcon'
 import {PasswordAccess} from './PasswordAccess'
@@ -30,8 +33,8 @@ import { WealthPage } from './pages/Wealth'
 import type { ModalKind, PageId } from './pages/shared'
 import { Brand, Button, ConfirmDialog, InlineError, LoadingScreen, Modal, MonthPicker, PageHeading, ThemeMenu, ThemeSelector, Toast } from './ui'
 
-const pagePaths: Record<PageId, string> = { dashboard: 'visao-geral', entries: 'movimentacoes', accounts: 'contas', cards: 'cartoes', wealth: 'patrimonio', goals: 'objetivos', journey: 'jornada' }
-const nav: { id: PageId; label: string; short: string; icon: LucideIcon; sprite: PixelSprite }[] = [
+const pagePaths: Record<PageId, string> = { dashboard: 'visao-geral', entries: 'movimentacoes', accounts: 'contas', cards: 'cartoes', wealth: 'patrimonio', goals: 'objetivos', journey: 'jornada', perfil: 'perfil' }
+const nav: { id: PageId; label: string; short: string; icon: LucideIcon; sprite?: PixelSprite; avatar?: boolean; mobile?: boolean }[] = [
   { id: 'dashboard', label: 'Visão geral', short: 'Início', icon: BarChart3, sprite: 'heart' },
   { id: 'accounts', label: 'Minhas contas', short: 'Contas', icon: Wallet, sprite: 'chest' },
   { id: 'cards', label: 'Cartões de crédito', short: 'Cartões', icon: CreditCard, sprite: 'card' },
@@ -39,6 +42,8 @@ const nav: { id: PageId; label: string; short: string; icon: LucideIcon; sprite:
   { id: 'goals', label: 'Metas & Sonhos', short: 'Metas', icon: Target, sprite: 'star' },
   { id: 'wealth', label: 'Reserva & patrimônio', short: 'Patrim.', icon: Gem, sprite: 'shield' },
   { id: 'journey', label: 'Evolução', short: 'Jornada', icon: Award, sprite: 'crown' },
+  // No celular, o Perfil abre pelo HUD do herói (a barra inferior já tem 7 itens).
+  { id: 'perfil', label: 'Perfil e Lojinha', short: 'Perfil', icon: Award, avatar: true, mobile: false },
 ]
 
 function pageFromHash(): PageId {
@@ -394,7 +399,7 @@ export default function App() {
         <nav className="sidebar-nav" aria-label="Navegação principal">
           {nav.map(item => (
             <button key={item.id} type="button" className={`nav-link ${page === item.id ? 'selected' : ''}`} aria-label={item.label} title={item.label} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
-              <PixelIcon name={item.sprite} size={24} />
+              {item.avatar ? <AvatarFigure look={lookFor(state)} portrait scale={1.35} /> : <PixelIcon name={item.sprite ?? 'star'} size={24} />}
               <span className="nav-link-label">{item.short}</span>
               {item.id === 'goals' && state.goals.length > 0 && <span className="nav-badge">{state.goals.length}</span>}
             </button>
@@ -408,7 +413,7 @@ export default function App() {
           <button type="button" onClick={() => go('journey')}>Ver evolução <ArrowRight size={14} /></button>
         </div>
         <button type="button" className="sidebar-profile" onClick={() => { setProfileName(state.user.name); open('profile') }}>
-          <span className="avatar">{firstName.slice(0, 1).toUpperCase()}</span>
+          <span className="avatar"><AvatarFigure look={lookFor(state)} portrait scale={1.6} /></span>
           <span className="sidebar-profile-text"><strong>{state.user.name}</strong><small>Meu perfil</small></span>
         </button>
       </aside>
@@ -470,14 +475,14 @@ export default function App() {
             <button type="button" className="btn btn-outline btn-sm" onClick={downloadCSV} title="Exportar histórico em CSV">
               <Download size={15} /><span>Exportar</span>
             </button>
-            <button type="button" className="avatar avatar-button" onClick={() => { setProfileName(state.user.name); open('profile') }} aria-label="Abrir perfil">
-              {firstName.slice(0, 1).toUpperCase()}
+            <button type="button" className="avatar avatar-button" onClick={() => { setProfileName(state.user.name); open('profile') }} aria-label="Abrir conta e preferências">
+              <AvatarFigure look={lookFor(state)} portrait scale={1.6} />
             </button>
           </div>
         </header>
 
         <div className="page-content" key={page}>
-          {page !== 'dashboard' && <HeroHud state={state} onProfile={() => { setProfileName(state.user.name); open('profile') }} />}
+          {page !== 'dashboard' && <HeroHud state={state} onProfile={() => go('perfil')} />}
           {page === 'dashboard' && <>
             <PageHeading
               className="dashboard-page-heading"
@@ -486,7 +491,7 @@ export default function App() {
               description=""
               action={<div className="dashboard-page-actions">{monthPicker}<Button onClick={createDashboardEntry}><Plus size={17} />Nova movimentação</Button></div>}
             />
-            <DashboardPage {...pageProps} month={month} onUpdated={refresh} onMonth={setMonth} onProfile={() => { setProfileName(state.user.name); open('profile') }}/>
+            <DashboardPage {...pageProps} month={month} onUpdated={refresh} onMonth={setMonth} onProfile={() => go('perfil')}/>
           </>}
 
           {page === 'entries' && <>
@@ -520,6 +525,21 @@ export default function App() {
             <GoalsPage {...pageProps} analysis={analysis} analysisLoading={analysisLoading} analyze={analyze} />
           </>}
 
+          {page === 'perfil' && <>
+            <PageHeading eyebrow="SEU PERSONAGEM" title="Perfil" description="Seu personagem, seu guarda-roupa e a Lojinha." action={<Button variant="secondary" onClick={() => { setProfileName(state.user.name); open('profile') }}>Conta e preferências</Button>} />
+            <ProfilePage state={state} onAppearance={async next => {
+              try {
+                await api('/preferences/avatar', json('PATCH', next))
+                await refresh()
+                showToast('Aparência salva.')
+                return true
+              } catch (err) {
+                showToast((err as Error).message, 'error')
+                return false
+              }
+            }} />
+          </>}
+
           {page === 'journey' && <>
             <PageHeading eyebrow="PROGRESSO REGISTRADO" title="Evolução" description="O jogo acompanha hábitos reais. Nunca incentiva gastos ou dívidas." />
             <JourneyPage {...pageProps} onUpdated={async()=>{await refresh();showToast(['Revisão registrada.',rewardNotice.current].filter(Boolean).join(' '))}}/>
@@ -528,9 +548,9 @@ export default function App() {
       </main>
 
       <nav className="bottom-nav" aria-label="Navegação principal">
-        {nav.map(item => (
+        {nav.filter(item => item.mobile !== false).map(item => (
           <button key={item.id} type="button" className={`bottom-nav-item ${page === item.id ? 'selected' : ''}`} aria-current={page === item.id ? 'page' : undefined} onClick={() => go(item.id)}>
-            <PixelIcon name={item.sprite} size={24} />
+            <PixelIcon name={item.sprite ?? 'star'} size={24} />
             <span>{item.short}</span>
           </button>
         ))}
