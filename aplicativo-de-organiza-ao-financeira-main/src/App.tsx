@@ -20,7 +20,9 @@ import type { RewardEffect } from './ActionEffects'
 import { EffectsPreview } from './EffectsPreview'
 import { HeroHud } from './components/RpgHud'
 import { AvatarFigure } from './avatar/Avatar'
-import { lookFor } from './avatar/look'
+import { equippedOf, lookFor } from './avatar/look'
+import { cosmetic } from './cosmetics'
+import type { CSSProperties } from 'react'
 import { ProfilePage } from './pages/Profile'
 import { PixelIcon } from './components/PixelIcon'
 import type { PixelSprite } from './components/PixelIcon'
@@ -172,7 +174,7 @@ export default function App() {
   const [entryFilter, setEntryFilter] = useState<EntryFilter>('all')
   const [profileName, setProfileName] = useState('')
   const [pendingRemove, setPendingRemove] = useState<{ path: string; title: string; description: string } | null>(null)
-  const { mode, setMode } = useTheme()
+  const { mode, resolved, setMode } = useTheme()
   const modeRef = useRef(mode)
   const operationKey = useRef<string | null>(null)
   const rewardNotice = useRef('')
@@ -390,8 +392,14 @@ export default function App() {
     requestRemove: setPendingRemove,
     toast: showToast,
   }
+  // Tema e moldura equipados mudam as janelas (só no tema escuro, onde as molduras são claras).
+  const equippedTheme = cosmetic(equippedOf(state, 'theme')).theme, equippedFrame = cosmetic(equippedOf(state, 'frame')).frame
+  const lookStyle = (resolved === 'dark' ? {
+    ...(equippedOf(state, 'theme') !== 'theme-night' && equippedTheme ? { '--rpg-win-top': equippedTheme.top, '--rpg-win-bottom': equippedTheme.bottom, '--rpg-frame-inner': equippedTheme.inner } : {}),
+    ...(equippedOf(state, 'frame') !== 'frame-classic' && equippedFrame ? { '--rpg-frame': equippedFrame } : {}),
+  } : {}) as CSSProperties
   return (
-    <div className="app-shell identity-app rpg-app">
+    <div className="app-shell identity-app rpg-app" style={lookStyle}>
       <aside className="sidebar">
         <button type="button" className="sidebar-brand-button" onClick={() => go('dashboard')}><Brand /></button>
         <p className="sidebar-tagline">Sua grana. Seu jogo.<br />Sua evolução.</p>
@@ -526,12 +534,34 @@ export default function App() {
           </>}
 
           {page === 'perfil' && <>
-            <PageHeading eyebrow="SEU PERSONAGEM" title="Perfil" description="Seu personagem, seu guarda-roupa e a Lojinha." action={<Button variant="secondary" onClick={() => { setProfileName(state.user.name); open('profile') }}>Conta e preferências</Button>} />
+            <PageHeading eyebrow="SEU PERSONAGEM" title="Perfil" description="Seu personagem, seu guarda-roupa e a Lojinha de Graninhas." action={<Button variant="secondary" onClick={() => { setProfileName(state.user.name); open('profile') }}>Conta e preferências</Button>} />
             <ProfilePage state={state} onAppearance={async next => {
               try {
                 await api('/preferences/avatar', json('PATCH', next))
                 await refresh()
                 showToast('Aparência salva.')
+                return true
+              } catch (err) {
+                showToast((err as Error).message, 'error')
+                return false
+              }
+            }} onPurchase={async (item, key) => {
+              try {
+                // A mesma chave em uma nova tentativa nunca cobra duas vezes.
+                await api('/cosmetics/purchase', { method: 'POST', body: JSON.stringify({ item: item.id }), headers: { 'Idempotency-Key': key } })
+                try { await api('/cosmetics/equip', json('POST', { slot: item.slot, item: item.id })) } catch { /* comprado; equipar fica para o jogador */ }
+                await refresh()
+                showToast(`${item.name} é seu! Já está equipado.`)
+                return true
+              } catch (err) {
+                showToast((err as Error).message, 'error')
+                try { await refresh() } catch { /* mantém a tela */ }
+                return false
+              }
+            }} onEquip={async (slot, item) => {
+              try {
+                await api('/cosmetics/equip', json('POST', { slot, item }))
+                await refresh()
                 return true
               } catch (err) {
                 showToast((err as Error).message, 'error')

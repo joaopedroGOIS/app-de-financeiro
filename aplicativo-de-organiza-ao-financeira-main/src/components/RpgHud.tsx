@@ -1,7 +1,8 @@
 import { Swords } from 'lucide-react'
 import { PixelIcon } from './PixelIcon'
 import { AvatarFigure } from '../avatar/Avatar'
-import { lookFor } from '../avatar/look'
+import { equippedOf, lookFor } from '../avatar/look'
+import { cosmetic } from '../cosmetics'
 import { cardBills, relevantCardBill } from '../creditCards'
 import { currency, dateToday, displayDate, monthName } from '../data'
 import type { State } from '../data'
@@ -24,7 +25,7 @@ export function HeroHud({ state, onProfile }: { state: State; onProfile: () => v
         <span className="rpg-hud-avatar"><AvatarFigure look={lookFor(state)} scale={1.25} /></span>
         <span className="rpg-hud-id">
           <strong>{state.user.name}</strong>
-          <small>Nível {level} · <b>{state.stats.financialClass ?? 'Aguardando sincronização'}</b></small>
+          <small>{cosmetic(equippedOf(state, 'title')).name} · Nível {level} · <b>{state.stats.financialClass ?? 'Aguardando sincronização'}</b></small>
         </span>
       </button>
       <div className="rpg-hud-xp">
